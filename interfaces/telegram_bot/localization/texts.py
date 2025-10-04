@@ -1,10 +1,11 @@
 # interfaces/telegram_bot/localization/texts.py
 """
-Система локализации с поддержкой RU/EN - ИСПРАВЛЕННАЯ ВЕРСИЯ
+Система локализации с поддержкой RU/EN - ИСПРАВЛЕННАЯ ВЕРСИЯ БЕЗ РЕКУРСИИ
 """
 
 import logging
 from typing import Dict, Any
+from adapters.database.supabase.client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -83,11 +84,8 @@ async def get_text(key: str, user_id: int, **kwargs) -> str:
     """
     try:
         # Получаем язык пользователя НАПРЯМУЮ из БД без use cases
-        from adapters.database.supabase.client import get_supabase_client
-
         client = await get_supabase_client()
 
-        # Прямой запрос к БД для получения языка (избегаем рекурсии)
         user_data = await client.execute_query(
             table="users",
             operation="select",
