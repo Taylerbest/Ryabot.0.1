@@ -34,11 +34,20 @@ async def get_user_use_cases():
 
 
 async def get_user_lang(user_id: int) -> str:
-    """Получить язык пользователя"""
+    """Получить язык пользователя БЕЗ рекурсии"""
     try:
-        use_cases = await get_user_use_cases()
-        profile = await use_cases['get_profile'].execute(user_id)
-        return profile.get('language', 'ru')
+        from adapters.database.supabase.client import get_supabase_client
+
+        client = await get_supabase_client()
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["language"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        return user_data['language'] if user_data else 'ru'
     except:
         return 'ru'
 
@@ -285,3 +294,27 @@ async def building_handler(callback: CallbackQuery):
     text = await get_text(f'{building}_text', user_id)
     await callback.message.edit_text(text, reply_markup=get_town_menu(lang))
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("lang_"))
+async def set_language(callback: CallbackQuery):
+    """Установка языка"""
+    lang = callback.data.split("_")[1]
+    user_id = callback.from_user.id
+
+    # Сохраняем язык в БД
+    try:
+        use_cases = await get_user_use_cases()
+        user_repo = use_cases['get_profile'].user_repo  # Получаем репозиторий
+
+        # Обновляем язык пользователя
+        await user_repo.update_resources(user_id, {"language": lang})
+
+        await callback.answer(t('language_changed', lang), show_alert=True)
+        await callback.message.edit_text(
+            t('language_changed_success', lang),
+            reply_markup=get_settings_keyboard(lang)
+        )
+    except Exception as e:
+        logger.error(f"Ошибка смены языка: {e}")
+        await callback.answer("Ошибка смены языка", show_alert=True)

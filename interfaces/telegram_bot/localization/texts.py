@@ -1,10 +1,10 @@
 # interfaces/telegram_bot/localization/texts.py
 """
-Система локализации с поддержкой RU/EN
+Система локализации с поддержкой RU/EN - ИСПРАВЛЕННАЯ ВЕРСИЯ
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,49 +40,6 @@ def load_locale(lang_code: str) -> Dict[str, str]:
         return TEXTS
 
 
-async def get_text(key: str, user_id: int, **kwargs) -> str:
-    """
-    Получить локализованный текст для пользователя
-
-    Args:
-        key: Ключ текста
-        user_id: ID пользователя в Telegram
-        **kwargs: Параметры для форматирования
-
-    Returns:
-        Отформатированный текст
-    """
-    try:
-        # Получаем язык пользователя из БД
-        from adapters.database.supabase.client import get_supabase_client
-        from adapters.database.supabase.repositories.user_repository import SupabaseUserRepository
-
-        client = await get_supabase_client()
-        user_repo = SupabaseUserRepository(client)
-        user = await user_repo.get_by_id(user_id)
-
-        lang = user.language if user else DEFAULT_LANGUAGE
-
-        # Загружаем тексты для языка
-        texts = load_locale(lang)
-
-        # Получаем текст
-        text = texts.get(key, f"MISSING_{key}")
-
-        # Форматируем с параметрами
-        if kwargs:
-            try:
-                text = text.format(**kwargs)
-            except (KeyError, ValueError) as e:
-                logger.error(f"Ошибка форматирования текста {key}: {e}")
-
-        return text
-
-    except Exception as e:
-        logger.error(f"Ошибка получения текста {key} для пользователя {user_id}: {e}")
-        return f"ERROR_{key}"
-
-
 def t(key: str, lang: str = 'ru', **kwargs) -> str:
     """
     Быстрая функция получения текста без async
@@ -110,3 +67,41 @@ def t(key: str, lang: str = 'ru', **kwargs) -> str:
     except Exception as e:
         logger.error(f"Ошибка t({key}): {e}")
         return f"ERROR_{key}"
+
+
+async def get_text(key: str, user_id: int, **kwargs) -> str:
+    """
+    Получить локализованный текст для пользователя БЕЗ рекурсии
+
+    Args:
+        key: Ключ текста
+        user_id: ID пользователя в Telegram
+        **kwargs: Параметры для форматирования
+
+    Returns:
+        Отформатированный текст
+    """
+    try:
+        # Получаем язык пользователя НАПРЯМУЮ из БД без use cases
+        from adapters.database.supabase.client import get_supabase_client
+
+        client = await get_supabase_client()
+
+        # Прямой запрос к БД для получения языка (избегаем рекурсии)
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["language"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        lang = user_data['language'] if user_data else DEFAULT_LANGUAGE
+
+        # Используем обычную функцию t()
+        return t(key, lang, **kwargs)
+
+    except Exception as e:
+        logger.error(f"Ошибка получения текста {key} для пользователя {user_id}: {e}")
+        # Fallback на русский
+        return t(key, DEFAULT_LANGUAGE, **kwargs)

@@ -1,9 +1,8 @@
-# interfaces/telegram_bot/localization/locales/__init__.py
+# interfaces/telegram_bot/localization/__init__.py
 """
-Локали бота
+Локализация бота
 """
 
-from interfaces.telegram_bot.localization.locales.ru import TEXTS as RU_TEXTS
-from interfaces.telegram_bot.localization.locales.en import TEXTS as EN_TEXTS
+from .texts import t, get_text, load_locale
 
-__all__ = ['RU_TEXTS', 'EN_TEXTS']
+__all__ = ['t', 'get_text', 'load_locale']
