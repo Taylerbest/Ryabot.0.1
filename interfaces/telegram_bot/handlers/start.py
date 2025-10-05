@@ -24,16 +24,18 @@ from services.tutorial_service import tutorial_service
 router = Router()
 logger = logging.getLogger(__name__)
 
+
 async def get_user_use_cases():
     """Получить use cases"""
     client = await get_supabase_client()
     user_repo = SupabaseUserRepository(client)
-    
+
     return {
         'create_user': CreateUserUseCase(user_repo),
         'get_profile': GetUserProfileUseCase(user_repo),
         'update_resources': UpdateUserResourcesUseCase(user_repo)
     }
+
 
 def get_start_menu() -> ReplyKeyboardMarkup:
     """Стартовое меню (вне острова)"""
@@ -41,13 +43,14 @@ def get_start_menu() -> ReplyKeyboardMarkup:
         [KeyboardButton(text=BTN_ENTER_ISLAND)],
         [KeyboardButton(text=BTN_SETTINGS), KeyboardButton(text=BTN_SUPPORT)]
     ]
-    
+
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
         one_time_keyboard=False,
         input_field_placeholder=PLACEHOLDER_MENU
     )
+
 
 def get_island_menu() -> ReplyKeyboardMarkup:
     """Меню острова"""
@@ -58,7 +61,7 @@ def get_island_menu() -> ReplyKeyboardMarkup:
         [KeyboardButton(text=BTN_LEADERBOARD), KeyboardButton(text=BTN_OTHER)],
         [KeyboardButton(text=BTN_LEAVE_ISLAND)]
     ]
-    
+
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
@@ -66,15 +69,16 @@ def get_island_menu() -> ReplyKeyboardMarkup:
         input_field_placeholder=PLACEHOLDER_MENU
     )
 
+
 async def format_welcome_message(stats: dict) -> str:
     """Форматирование стартового сообщения"""
     uptime = stats['uptime']
-    
+
     if uptime['days'] > 0:
         uptime_text = f"{uptime['days']}д {uptime['hours']}ч {uptime['minutes']}м"
     else:
         uptime_text = f"{uptime['hours']}ч {uptime['minutes']}м"
-    
+
     return WELCOME_TO_ISLAND.format(
         uptime=uptime_text,
         total_users=stats['total_users'],
@@ -84,6 +88,7 @@ async def format_welcome_message(stats: dict) -> str:
         qpass_holders=stats['quantum_pass_holders']
     )
 
+
 # === КОМАНДА /START ===
 
 @router.message(Command("start"))
@@ -92,56 +97,49 @@ async def cmd_start(message: Message, state: FSMContext):
     try:
         user_id = message.from_user.id
         username = message.from_user.username or f"user_{user_id}"
-        
+
         logger.info(f"👤 Пользователь {user_id} (@{username}) запустил /start")
-        
+
         # Создаем пользователя
         use_cases = await get_user_use_cases()
         user = await use_cases['create_user'].execute(user_id, username)
-        
+
         if not user:
             await message.answer(ERROR_GENERAL)
             return
-        
+
         # Проверяем туториал
         tutorial_step = await tutorial_service.get_tutorial_step(user_id)
-        
+
         if tutorial_step == TutorialStep.NOT_STARTED:
-            # Начинаем с создания персонажа
-            from .tutorial import router as tutorial_router
-            from .tutorial import start_character_creation
-            
-            # Создаем fake callback для запуска создания персонажа
-            from aiogram.types import CallbackQuery, User
-            fake_callback = CallbackQuery(
-                id="start_char", 
-                from_user=message.from_user,
-                chat_instance="start",
-                data="start_character_creation",
-                message=message
+            # Начинаем с создания персонажа - показываем напрямую
+            from .tutorial import get_character_keyboard
+
+            await message.answer(
+                CHARACTER_CREATION_TITLE,
+                reply_markup=get_character_keyboard()
             )
-            
-            await start_character_creation(fake_callback, state)
             return
-        
+
         elif tutorial_step != TutorialStep.COMPLETED:
             # Продолжаем туториал
             hint = tutorial_service.get_next_step_hint(tutorial_step)
             await message.answer(f"🎯 **Туториал в процессе**\n\n{hint}")
             return
-        
+
         # Туториал завершен - показываем стартовый экран
         stats = await game_stats.get_all_stats()
         welcome_text = await format_welcome_message(stats)
-        
+
         await message.answer(
             welcome_text,
             reply_markup=get_start_menu()
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка в /start для пользователя {message.from_user.id}: {e}")
         await message.answer(ERROR_GENERAL)
+
 
 # === ВХОД НА ОСТРОВ ===
 
@@ -150,23 +148,23 @@ async def enter_island(message: Message, state: FSMContext):
     """Вход на остров - ИСПРАВЛЕННЫЙ"""
     try:
         user_id = message.from_user.id
-        
+
         # Проверяем туториал
         tutorial_step = await tutorial_service.get_tutorial_step(user_id)
-        
+
         if tutorial_step != TutorialStep.COMPLETED:
             hint = tutorial_service.get_next_step_hint(tutorial_step)
             await message.answer(f"🎯 Сначала завершите туториал!\n\n{hint}")
             return
-        
+
         # Получаем профиль
         use_cases = await get_user_use_cases()
         profile = await use_cases['get_profile'].execute(user_id)
-        
+
         if not profile:
             await message.answer(ERROR_GENERAL)
             return
-        
+
         # Формируем приветствие острова
         island_text = ISLAND_MENU.format(
             username=profile.get('username', 'Островитянин'),
@@ -177,15 +175,16 @@ async def enter_island(message: Message, state: FSMContext):
             energy=profile['energy'],
             energy_max=profile['energy_max']
         )
-        
+
         await message.answer(
             island_text,
             reply_markup=get_island_menu()
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка входа на остров для {message.from_user.id}: {e}")
         await message.answer(ERROR_ENTER_ISLAND)
+
 
 # === ВЫХОД С ОСТРОВА ===
 
@@ -196,15 +195,16 @@ async def leave_island(message: Message, state: FSMContext):
         # Показываем стартовый экран
         stats = await game_stats.get_all_stats()
         welcome_text = await format_welcome_message(stats)
-        
+
         await message.answer(
             welcome_text,
             reply_markup=get_start_menu()
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка выхода с острова: {e}")
         await message.answer(ERROR_GENERAL)
+
 
 # === ПРОФИЛЬ ЖИТЕЛЯ ===
 
@@ -213,17 +213,17 @@ async def citizen_profile(message: Message):
     """Профиль жителя"""
     try:
         user_id = message.from_user.id
-        
+
         use_cases = await get_user_use_cases()
         profile = await use_cases['get_profile'].execute(user_id)
-        
+
         if not profile:
             await message.answer(ERROR_GENERAL)
             return
-        
+
         # Получаем выбранного персонажа
         character_name = CHARACTER_NAMES.get(profile.get('character_preset', 1), "Неизвестный")
-        
+
         profile_text = f"""
 👤 **ПРОФИЛЬ ЖИТЕЛЯ**
 
@@ -244,12 +244,13 @@ async def citizen_profile(message: Message):
 
 🏝️ **Гражданин острова с** {profile['created_at'][:10]}
         """.strip()
-        
+
         await message.answer(profile_text)
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка профиля: {e}")
         await message.answer(ERROR_GENERAL)
+
 
 # === ЗАГЛУШКИ РАЗДЕЛОВ ===
 
@@ -258,40 +259,48 @@ async def farm_menu(message: Message):
     """Ферма (заглушка)"""
     await message.answer(f"🐔 **ФЕРМА**\n\n{SECTION_UNDER_DEVELOPMENT}")
 
+
 @router.message(F.text == BTN_WORK)
 async def work_menu(message: Message):
     """Рябота (заглушка)"""
     await message.answer(f"💼 **РЯБОТА**\n\n{SECTION_UNDER_DEVELOPMENT}")
+
 
 @router.message(F.text == BTN_INVENTORY)
 async def inventory_menu(message: Message):
     """Инвентарь (заглушка)"""
     await message.answer(f"🎒 **ИНВЕНТАРЬ**\n\n{SECTION_UNDER_DEVELOPMENT}")
 
+
 @router.message(F.text == BTN_FRIENDS)
 async def friends_menu(message: Message):
     """Друзья (заглушка)"""
     await message.answer(f"👥 **ДРУЗЬЯ**\n\n{SECTION_UNDER_DEVELOPMENT}")
+
 
 @router.message(F.text == BTN_LEADERBOARD)
 async def leaderboard_menu(message: Message):
     """Рейтинг (заглушка)"""
     await message.answer(f"🏆 **РЕЙТИНГ**\n\n{SECTION_UNDER_DEVELOPMENT}")
 
+
 @router.message(F.text == BTN_OTHER)
 async def other_menu(message: Message):
     """Ещё (заглушка)"""
     await message.answer(f"📋 **ЕЩЁ**\n\n{SECTION_UNDER_DEVELOPMENT}")
+
 
 @router.message(F.text == BTN_SETTINGS)
 async def settings_menu(message: Message):
     """Настройки (заглушка)"""
     await message.answer(f"⚙️ **НАСТРОЙКИ**\n\n{SECTION_UNDER_DEVELOPMENT}")
 
+
 @router.message(F.text == BTN_SUPPORT)
 async def support_menu(message: Message):
     """Поддержка (заглушка)"""
     await message.answer(f"🆘 **ПОДДЕРЖКА**\n\n{SECTION_UNDER_DEVELOPMENT}")
+
 
 # === ПЕРЕХОД В ГОРОД ===
 
@@ -302,7 +311,7 @@ async def town_menu(message: Message):
         # Импортируем handler города
         from .town import show_town_menu
         await show_town_menu(message)
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка города: {e}")
         await message.answer(ERROR_GENERAL)

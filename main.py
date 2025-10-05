@@ -1,7 +1,6 @@
 # main.py
 """
-Главный файл приложения Ryabot Island
-Точка входа в приложение
+Точка входа для Telegram бота Ryabot Island
 """
 
 import asyncio
@@ -10,117 +9,125 @@ import sys
 import os
 from pathlib import Path
 
-# Добавляем корневую папку в Python path
+# Добавляем родительскую директорию в Python path
 sys.path.append(str(Path(__file__).parent))
 
 from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config.settings import settings
 from interfaces.telegram_bot.handlers import setup_handlers
-from interfaces.telegram_bot.middlewares import setup_middlewares
 from adapters.database.supabase.client import get_supabase_client, close_supabase_client
 
-# Глобальные объекты
-bot: Bot = None
-dp: Dispatcher = None
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/bot.log', encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+# Глобальные переменные
+bot = None
+dp = None
+
 
 async def initialize_app():
     """Инициализация приложения"""
     global bot, dp
-    
-    logger = logging.getLogger(__name__)
+
     logger.info("🚀 Запуск Ryabot Island Bot...")
-    
+
     try:
-        # 1. Создаем папки для логов если их нет
-        os.makedirs("logs", exist_ok=True)
-        
-        # 2. Инициализируем Telegram Bot
-        bot = Bot(token=settings.BOT_TOKEN)
+        # Создаем директорию для логов
+        Path('logs').mkdir(exist_ok=True)
+
+        # Инициализация бота
+        bot = Bot(
+            token=settings.BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
+        )
+
+        # Инициализация dispatcher с memory storage
         storage = MemoryStorage()
         dp = Dispatcher(storage=storage)
-        
-        # 3. Инициализируем базу данных
-        logger.info(f"📊 Инициализация БД: {settings.DATABASE_TYPE.value}")
+
+        # ВАЖНО: Устанавливаем bot instance в blockchain_service
+        from services.blockchain_service import blockchain_service
+        blockchain_service.set_bot(bot)
+        logger.info("✅ Bot instance установлен в blockchain_service")
+
+        # Инициализация Supabase клиента
         supabase_client = await get_supabase_client()
-        logger.info("✅ База данных подключена")
-        
-        # 4. Настраиваем middleware
-        await setup_middlewares(dp)
-        
-        # 5. Настраиваем handlers
+        logger.info("✅ Подключение к Supabase установлено")
+
+        # Регистрация handlers
         await setup_handlers(dp)
-        
-        # 6. Получаем информацию о боте
-        bot_info = await bot.get_me()
-        logger.info(f"🤖 Бот @{bot_info.username} готов к работе")
-        logger.info(f"📱 Режим: {'🔧 Разработка' if settings.DEBUG else '🚀 Продакшен'}")
-        
-        return True
-        
+        logger.info("✅ Handlers зарегистрированы")
+
+        # Инициализация game stats
+        from config.game_stats import game_stats
+        logger.info(f"✅ Game stats инициализированы (запуск: {game_stats.bot_start_time})")
+
+        logger.info("🎉 Инициализация завершена успешно!")
+
     except Exception as e:
-        logger.error(f"❌ Ошибка инициализации приложения: {e}")
-        return False
+        logger.error(f"❌ Ошибка инициализации: {e}")
+        raise
+
 
 async def shutdown_app():
-    """Корректное завершение приложения"""
-    logger = logging.getLogger(__name__)
-    logger.info("🛑 Завершение работы бота...")
-    
+    """Завершение работы приложения"""
+    global bot, dp
+
+    logger.info("🛑 Остановка Ryabot Island Bot...")
+
     try:
-        # Закрываем соединения
+        # Закрываем соединение с БД
+        await close_supabase_client()
+        logger.info("✅ Соединение с Supabase закрыто")
+
+        # Закрываем сессию бота
         if bot:
             await bot.session.close()
-            logger.info("✅ Telegram Bot отключен")
-        
-        await close_supabase_client()
-        logger.info("✅ База данных отключена")
-        
-        logger.info("✅ Приложение корректно завершено")
-        
+            logger.info("✅ Сессия бота закрыта")
+
+        logger.info("👋 Бот остановлен")
+
     except Exception as e:
-        logger.error(f"❌ Ошибка завершения приложения: {e}")
+        logger.error(f"❌ Ошибка при остановке: {e}")
+
 
 async def main():
     """Главная функция"""
     try:
-        # Инициализируем приложение
-        if not await initialize_app():
-            print("❌ Не удалось инициализировать приложение")
-            return 1
-        
-        # Запускаем polling
-        print("🎮 Ryabot Island Bot запущен!")
-        print(f"💬 Отправьте /start боту @{settings.BOT_USERNAME}")
-        print("🔄 Нажмите Ctrl+C для остановки\n")
-        
-        await dp.start_polling(bot)
-        
+        # Инициализация
+        await initialize_app()
+
+        # Запуск polling
+        logger.info("🔄 Запуск polling...")
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+
     except KeyboardInterrupt:
-        print("\n⏹️ Получен сигнал остановки")
+        logger.info("⚠️ Получен сигнал остановки (Ctrl+C)")
     except Exception as e:
-        print(f"❌ Критическая ошибка: {e}")
-        return 1
+        logger.error(f"❌ Критическая ошибка: {e}")
     finally:
+        # Завершение работы
         await shutdown_app()
-    
-    return 0
+
 
 if __name__ == "__main__":
-    # Настройка логирования
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('logs/bot.log', encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
-    
-    # Отключаем лишние логи aiogram
-    logging.getLogger("aiogram.event").setLevel(logging.WARNING)
-    logging.getLogger("aiogram.dispatcher").setLevel(logging.WARNING)
-    
-    # Запускаем
-    exit_code = asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("⚠️ Программа прервана пользователем")
+    except Exception as e:
+        logger.error(f"❌ Критическая ошибка при запуске: {e}")
+        sys.exit(1)
