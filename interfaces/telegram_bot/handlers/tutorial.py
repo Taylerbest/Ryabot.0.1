@@ -243,106 +243,359 @@ async def tutorial_sell_shard(callback: CallbackQuery):
         user_id = callback.from_user.id
         username = callback.from_user.username or f"user_{user_id}"
 
-        # Получаем use cases
-        use_cases = await get_user_use_cases()
-        profile = await use_cases['get_profile'].execute(user_id)
+        logger.info(f"🔧 Начало продажи осколка для {user_id}")
 
-        if not profile:
-            await callback.answer("Ошибка получения профиля", show_alert=True)
+        # Получаем клиент БД напрямую
+        from adapters.database.supabase.client import get_supabase_client
+        client = await get_supabase_client()
+
+        # Получаем текущие данные пользователя
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["ryabucks", "golden_shards"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        if not user_data:
+            logger.error(f"❌ Пользователь {user_id} не найден в БД")
+            await callback.answer("Ошибка: пользователь не найден", show_alert=True)
             return
 
+        logger.info(f"📊 Текущие данные: ryabucks={user_data['ryabucks']}, golden_shards={user_data['golden_shards']}")
+
         # Проверяем наличие осколка
-        if profile.get('golden_shards', 0) < 1:
+        current_shards = user_data.get('golden_shards', 0)
+        if current_shards < 1:
+            logger.warning(f"⚠️ У пользователя {user_id} нет осколков: {current_shards}")
             await callback.answer("У вас нет золотого осколка!", show_alert=True)
             return
 
-        # Продаём осколок - начисляем 500 рябаксов, убираем 1 осколок
-        await use_cases['update_resources'].execute(user_id, {
-            "ryabucks": profile['ryabucks'] + 500,
-            "golden_shards": profile['golden_shards'] - 1
-        })
+        # Обновляем ресурсы
+        new_ryabucks = user_data['ryabucks'] + 500
+        new_shards = current_shards - 1
 
-        # Логируем продажу
+        logger.info(
+            f"💰 Обновление: ryabucks {user_data['ryabucks']} → {new_ryabucks}, shards {current_shards} → {new_shards}")
+
+        result = await client.execute_query(
+            table="users",
+            operation="update",
+            data={
+                "ryabucks": new_ryabucks,
+                "golden_shards": new_shards
+            },
+            filters={"user_id": user_id}
+        )
+
+        if not result:
+            logger.error(f"❌ Не удалось обновить данные пользователя {user_id}")
+            await callback.answer("Ошибка обновления данных", show_alert=True)
+            return
+
+        logger.info(f"✅ Ресурсы успешно обновлены для {user_id}")
+
+        # Логируем в блокчейн
+        from services.blockchain_service import blockchain_service
         await blockchain_service.log_action(
             "SHARD_SOLD", user_id, username,
             {"shard_type": "golden", "price": 500, "currency": "ryabucks"},
             significance=1
         )
 
+        logger.info(f"✅ Действие залогировано в блокчейн")
+
         # Обновляем шаг туториала
+        from services.tutorial_service import tutorial_service
+        from core.domain.entities import TutorialStep
         await tutorial_service.update_tutorial_step(user_id, TutorialStep.TOWN_HALL_REGISTER)
 
+        logger.info(f"✅ Шаг туториала обновлен")
+
         # Показываем результат
+        from config.texts import TUTORIAL_PAWNSHOP_SOLD
         await callback.message.edit_text(
             TUTORIAL_PAWNSHOP_SOLD,
             reply_markup=get_tutorial_keyboard("pawnshop_sold")
         )
 
         await callback.answer("✅ Осколок продан за 500 рябаксов!", show_alert=True)
+        logger.info(f"🎉 Продажа осколка завершена успешно для {user_id}")
 
     except Exception as e:
-        logger.error(f"❌ Ошибка продажи осколка: {e}")
-        await callback.answer("Ошибка продажи", show_alert=True)
+        logger.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА продажи осколка для {callback.from_user.id}: {e}", exc_info=True)
+        await callback.answer(f"Ошибка продажи: {str(e)}", show_alert=True)
 
 
-    except Exception as e:
-        logger.error(f"Ошибка продажи осколка: {e}")
-        await callback.answer("Ошибка продажи", show_alert=True)
+# Добавьте этот handler после функции tutorial_sell_shard:
 
 @router.callback_query(F.data == "tutorial_townhall")
 async def tutorial_townhall(callback: CallbackQuery):
-    """Ратуша - регистрация"""
+    """Переход в ратушу"""
     try:
         user_id = callback.from_user.id
 
+        # Обновляем шаг туториала
+        await tutorial_service.update_tutorial_step(user_id, TutorialStep.TOWN_HALL_REGISTER)
+
+        # Показываем ратушу
         await callback.message.edit_text(
             TUTORIAL_TOWNHALL_REGISTER,
             reply_markup=get_tutorial_keyboard("townhall_register")
         )
+
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Ошибка ратуши: {e}")
+        logger.error(f"❌ Ошибка перехода в ратушу: {e}")
         await callback.answer("Ошибка", show_alert=True)
+
 
 @router.callback_query(F.data == "tutorial_register")
 async def tutorial_register(callback: CallbackQuery):
-    """Регистрация гражданина"""
+    """Регистрация в ратуше"""
     try:
         user_id = callback.from_user.id
         username = callback.from_user.username or f"user_{user_id}"
 
-        # Списываем деньги
-        use_cases = await get_user_use_cases()
-        profile = await use_cases['get_profile'].execute(user_id)
+        logger.info(f"🏛️ Регистрация гражданина {user_id}")
 
-        if profile['ryabucks'] < 10:
-            await callback.answer("Недостаточно рябаксов!", show_alert=True)
+        # Получаем клиент БД
+        client = await get_supabase_client()
+
+        # Получаем текущие данные
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["ryabucks"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        if not user_data:
+            await callback.answer("Ошибка получения профиля", show_alert=True)
             return
 
-        await use_cases['update_resources'].execute(user_id, {
-            "ryabucks": profile['ryabucks'] - 10
-        })
+        # Проверяем деньги
+        if user_data['ryabucks'] < 10:
+            await callback.answer("Недостаточно рябаксов! Нужно 10.", show_alert=True)
+            return
 
-        # Логируем регистрацию в блокчейн
+        # Списываем 10 рябаксов и даем доступ к острову
+        await client.execute_query(
+            table="users",
+            operation="update",
+            data={
+                "ryabucks": user_data['ryabucks'] - 10,
+                "has_island_access": True
+            },
+            filters={"user_id": user_id}
+        )
+
+        # Логируем регистрацию
         await blockchain_service.log_action(
             "CITIZEN_REGISTERED", user_id, username,
             {"fee_paid": 10, "status": "citizen"},
-            significance=2  # Эпическое событие - новый гражданин!
+            significance=2  # Эпическое событие!
         )
 
+        # Обновляем шаг туториала
         await tutorial_service.update_tutorial_step(user_id, TutorialStep.EMPLOYER_LICENSE)
 
+        # Показываем результат
         text = TUTORIAL_TOWNHALL_REGISTERED.format(username=username)
         await callback.message.edit_text(
             text,
             reply_markup=get_tutorial_keyboard("townhall_registered")
         )
-        await callback.answer("🎉 Вы гражданин острова!", show_alert=True)
+
+        await callback.answer("✅ Вы стали гражданином!", show_alert=True)
 
     except Exception as e:
-        logger.error(f"Ошибка регистрации: {e}")
+        logger.error(f"❌ Ошибка регистрации: {e}", exc_info=True)
         await callback.answer("Ошибка регистрации", show_alert=True)
+
+
+@router.callback_query(F.data == "tutorial_employer_license")
+async def tutorial_employer_license(callback: CallbackQuery):
+    """Показать информацию о лицензии работодателя"""
+    try:
+        await callback.message.edit_text(
+            TUTORIAL_EMPLOYER_LICENSE,
+            reply_markup=get_tutorial_keyboard("employer_license")
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка: {e}")
+        await callback.answer("Ошибка", show_alert=True)
+
+
+@router.callback_query(F.data == "tutorial_buy_employer_license")
+async def tutorial_buy_employer_license(callback: CallbackQuery):
+    """Купить лицензию работодателя"""
+    try:
+        user_id = callback.from_user.id
+        username = callback.from_user.username or f"user_{user_id}"
+
+        # Получаем клиент БД
+        client = await get_supabase_client()
+
+        # Получаем текущие данные
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["ryabucks", "has_employer_license"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        if not user_data:
+            await callback.answer("Ошибка получения профиля", show_alert=True)
+            return
+
+        # Проверяем, нет ли уже лицензии
+        if user_data.get('has_employer_license', False):
+            await callback.answer("У вас уже есть эта лицензия!", show_alert=True)
+            return
+
+        # Проверяем деньги
+        if user_data['ryabucks'] < 100:
+            await callback.answer("Недостаточно рябаксов! Нужно 100.", show_alert=True)
+            return
+
+        # Покупаем лицензию
+        new_ryabucks = user_data['ryabucks'] - 100
+        await client.execute_query(
+            table="users",
+            operation="update",
+            data={
+                "ryabucks": new_ryabucks,
+                "has_employer_license": True
+            },
+            filters={"user_id": user_id}
+        )
+
+        # Логируем покупку
+        await blockchain_service.log_action(
+            "LICENSE_PURCHASED", user_id, username,
+            {"license_type": "employer", "level": 1, "price": 100},
+            significance=1
+        )
+
+        # Обновляем шаг туториала - теперь игрок может нанимать рабочих
+        await tutorial_service.update_tutorial_step(user_id, TutorialStep.ISLAND_ACCESS_GRANTED)
+
+        # Показываем результат
+        text = TUTORIAL_LICENSE_BOUGHT.format(remaining=new_ryabucks)
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_tutorial_keyboard("license_bought")
+        )
+
+        await callback.answer("✅ Лицензия куплена!", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка покупки лицензии: {e}", exc_info=True)
+        await callback.answer("Ошибка покупки", show_alert=True)
+
+
+@router.callback_query(F.data == "tutorial_register")
+async def tutorial_register(callback: CallbackQuery):
+    """Регистрация в ратуше"""
+    try:
+        user_id = callback.from_user.id
+        username = callback.from_user.username or f"user_{user_id}"
+
+        logger.info(f"🏛️ Начало регистрации для {user_id}")
+
+        # Получаем клиент БД
+        from adapters.database.supabase.client import get_supabase_client
+        client = await get_supabase_client()
+
+        logger.info(f"✅ Клиент БД получен")
+
+        # Получаем текущие данные
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["ryabucks", "has_island_access"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        if not user_data:
+            logger.error(f"❌ Пользователь {user_id} не найден в БД")
+            await callback.answer("Ошибка получения профиля", show_alert=True)
+            return
+
+        logger.info(f"📊 Текущие рябаксы: {user_data['ryabucks']}")
+
+        # Проверяем деньги
+        if user_data['ryabucks'] < 10:
+            logger.warning(f"⚠️ Недостаточно средств: {user_data['ryabucks']} < 10")
+            await callback.answer("Недостаточно рябаксов! Нужно 10.", show_alert=True)
+            return
+
+        # Списываем 10 рябаксов и даем доступ к острову
+        new_ryabucks = user_data['ryabucks'] - 10
+
+        logger.info(f"💰 Обновление: ryabucks {user_data['ryabucks']} → {new_ryabucks}, has_island_access → True")
+
+        result = await client.execute_query(
+            table="users",
+            operation="update",
+            data={
+                "ryabucks": new_ryabucks,
+                "has_island_access": True
+            },
+            filters={"user_id": user_id}
+        )
+
+        if not result:
+            logger.error(f"❌ Не удалось обновить пользователя {user_id}")
+            await callback.answer("Ошибка обновления данных", show_alert=True)
+            return
+
+        logger.info(f"✅ Данные обновлены успешно")
+
+        # Логируем регистрацию
+        from services.blockchain_service import blockchain_service
+        try:
+            await blockchain_service.log_action(
+                "CITIZEN_REGISTERED", user_id, username,
+                {"fee_paid": 10, "status": "citizen"},
+                significance=2
+            )
+            logger.info(f"✅ Регистрация залогирована в блокчейн")
+        except Exception as log_error:
+            logger.warning(f"⚠️ Ошибка логирования (не критично): {log_error}")
+
+        # Обновляем шаг туториала
+        from services.tutorial_service import tutorial_service
+        from core.domain.entities import TutorialStep
+        await tutorial_service.update_tutorial_step(user_id, TutorialStep.EMPLOYER_LICENSE)
+
+        logger.info(f"✅ Шаг туториала обновлен")
+
+        # Показываем результат
+        from config.texts import TUTORIAL_TOWNHALL_REGISTERED
+        text = TUTORIAL_TOWNHALL_REGISTERED.format(username=username)
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_tutorial_keyboard("townhall_registered"),
+            parse_mode=None  # Отключаем markdown на всякий случай
+        )
+
+        await callback.answer("✅ Вы стали гражданином!", show_alert=True)
+        logger.info(f"🎉 Регистрация завершена успешно для {user_id}")
+
+    except Exception as e:
+        logger.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА регистрации для {callback.from_user.id}: {e}", exc_info=True)
+        await callback.answer(f"Ошибка регистрации: {str(e)[:100]}", show_alert=True)
+
 
 @router.callback_query(F.data == "tutorial_employer_license")
 async def tutorial_employer_license(callback: CallbackQuery):
