@@ -6,12 +6,10 @@
 
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 from decimal import Decimal
+from datetime import datetime
 
-from core.domain.entities import (
-    User, Specialist, Animal, Building, UserStats, SpecialistType, AnimalType
-)
+from core.domain.entities import User, Specialist, Animal, Building, UserStats
 
 class UserRepository(ABC):
     """Интерфейс для работы с пользователями"""
