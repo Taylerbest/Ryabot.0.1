@@ -354,17 +354,19 @@ async def tutorial_townhall(callback: CallbackQuery):
 
 @router.callback_query(F.data == "tutorial_register")
 async def tutorial_register(callback: CallbackQuery):
-    """Регистрация в ратуше"""
+    """Регистрация в ратуше - УПРОЩЕННАЯ ВЕРСИЯ"""
     try:
         user_id = callback.from_user.id
         username = callback.from_user.username or f"user_{user_id}"
 
-        logger.info(f"🏛️ Регистрация гражданина {user_id}")
+        logger.info(f"=== НАЧАЛО РЕГИСТРАЦИИ для {user_id} ===")
 
-        # Получаем клиент БД
+        # Шаг 1: Получаем клиент
+        from adapters.database.supabase.client import get_supabase_client
         client = await get_supabase_client()
+        logger.info("✓ Клиент получен")
 
-        # Получаем текущие данные
+        # Шаг 2: Читаем данные
         user_data = await client.execute_query(
             table="users",
             operation="select",
@@ -372,49 +374,69 @@ async def tutorial_register(callback: CallbackQuery):
             filters={"user_id": user_id},
             single=True
         )
+        logger.info(f"✓ Данные получены: ryabucks={user_data.get('ryabucks') if user_data else 'None'}")
 
         if not user_data:
-            await callback.answer("Ошибка получения профиля", show_alert=True)
+            logger.error("✗ Пользователь не найден")
+            await callback.answer("Пользователь не найден", show_alert=True)
             return
 
-        # Проверяем деньги
+        # Шаг 3: Проверяем деньги
         if user_data['ryabucks'] < 10:
-            await callback.answer("Недостаточно рябаксов! Нужно 10.", show_alert=True)
+            logger.warning(f"✗ Недостаточно денег: {user_data['ryabucks']}")
+            await callback.answer(f"Недостаточно рябаксов! У вас {user_data['ryabucks']}, нужно 10.", show_alert=True)
             return
 
-        # Списываем 10 рябаксов и даем доступ к острову
-        await client.execute_query(
+        logger.info("✓ Денег достаточно")
+
+        # Шаг 4: Обновляем БД
+        new_ryabucks = user_data['ryabucks'] - 10
+        logger.info(f"Обновление: ryabucks {user_data['ryabucks']} → {new_ryabucks}")
+
+        result = await client.execute_query(
             table="users",
             operation="update",
             data={
-                "ryabucks": user_data['ryabucks'] - 10,
+                "ryabucks": new_ryabucks,
                 "has_island_access": True
             },
             filters={"user_id": user_id}
         )
+        logger.info(f"✓ БД обновлена: {bool(result)}")
 
-        # Логируем регистрацию
-        await blockchain_service.log_action(
-            "CITIZEN_REGISTERED", user_id, username,
-            {"fee_paid": 10, "status": "citizen"},
-            significance=2  # Эпическое событие!
-        )
+        # Шаг 5: Обновляем шаг туториала
+        from services.tutorial_service import tutorial_service
+        from core.domain.entities import TutorialStep
 
-        # Обновляем шаг туториала
         await tutorial_service.update_tutorial_step(user_id, TutorialStep.EMPLOYER_LICENSE)
+        logger.info("✓ Шаг туториала обновлен")
 
-        # Показываем результат
-        text = TUTORIAL_TOWNHALL_REGISTERED.format(username=username)
+        # Шаг 6: Показываем результат (БЕЗ format!)
+        simple_text = f"""
+✅ ВЫ ГРАЖДАНИН ОСТРОВА!
+
+Поздравляю, гражданин @{username}!
+
+💰 Потрачено: 10 рябаксов
+
+🏝 Теперь вы можете входить на остров!
+"""
+
         await callback.message.edit_text(
-            text,
+            simple_text,
             reply_markup=get_tutorial_keyboard("townhall_registered")
         )
+        logger.info("✓ Сообщение отправлено")
 
         await callback.answer("✅ Вы стали гражданином!", show_alert=True)
+        logger.info("=== РЕГИСТРАЦИЯ ЗАВЕРШЕНА ===")
 
     except Exception as e:
-        logger.error(f"❌ Ошибка регистрации: {e}", exc_info=True)
-        await callback.answer("Ошибка регистрации", show_alert=True)
+        logger.error(f"=== ОШИБКА РЕГИСТРАЦИИ ===")
+        logger.error(f"Тип ошибки: {type(e).__name__}")
+        logger.error(f"Текст ошибки: {str(e)}")
+        logger.error(f"Traceback:", exc_info=True)
+        await callback.answer(f"Ошибка: {type(e).__name__}", show_alert=True)
 
 
 @router.callback_query(F.data == "tutorial_employer_license")
@@ -500,101 +522,6 @@ async def tutorial_buy_employer_license(callback: CallbackQuery):
         logger.error(f"❌ Ошибка покупки лицензии: {e}", exc_info=True)
         await callback.answer("Ошибка покупки", show_alert=True)
 
-
-@router.callback_query(F.data == "tutorial_register")
-async def tutorial_register(callback: CallbackQuery):
-    """Регистрация в ратуше"""
-    try:
-        user_id = callback.from_user.id
-        username = callback.from_user.username or f"user_{user_id}"
-
-        logger.info(f"🏛️ Начало регистрации для {user_id}")
-
-        # Получаем клиент БД
-        from adapters.database.supabase.client import get_supabase_client
-        client = await get_supabase_client()
-
-        logger.info(f"✅ Клиент БД получен")
-
-        # Получаем текущие данные
-        user_data = await client.execute_query(
-            table="users",
-            operation="select",
-            columns=["ryabucks", "has_island_access"],
-            filters={"user_id": user_id},
-            single=True
-        )
-
-        if not user_data:
-            logger.error(f"❌ Пользователь {user_id} не найден в БД")
-            await callback.answer("Ошибка получения профиля", show_alert=True)
-            return
-
-        logger.info(f"📊 Текущие рябаксы: {user_data['ryabucks']}")
-
-        # Проверяем деньги
-        if user_data['ryabucks'] < 10:
-            logger.warning(f"⚠️ Недостаточно средств: {user_data['ryabucks']} < 10")
-            await callback.answer("Недостаточно рябаксов! Нужно 10.", show_alert=True)
-            return
-
-        # Списываем 10 рябаксов и даем доступ к острову
-        new_ryabucks = user_data['ryabucks'] - 10
-
-        logger.info(f"💰 Обновление: ryabucks {user_data['ryabucks']} → {new_ryabucks}, has_island_access → True")
-
-        result = await client.execute_query(
-            table="users",
-            operation="update",
-            data={
-                "ryabucks": new_ryabucks,
-                "has_island_access": True
-            },
-            filters={"user_id": user_id}
-        )
-
-        if not result:
-            logger.error(f"❌ Не удалось обновить пользователя {user_id}")
-            await callback.answer("Ошибка обновления данных", show_alert=True)
-            return
-
-        logger.info(f"✅ Данные обновлены успешно")
-
-        # Логируем регистрацию
-        from services.blockchain_service import blockchain_service
-        try:
-            await blockchain_service.log_action(
-                "CITIZEN_REGISTERED", user_id, username,
-                {"fee_paid": 10, "status": "citizen"},
-                significance=2
-            )
-            logger.info(f"✅ Регистрация залогирована в блокчейн")
-        except Exception as log_error:
-            logger.warning(f"⚠️ Ошибка логирования (не критично): {log_error}")
-
-        # Обновляем шаг туториала
-        from services.tutorial_service import tutorial_service
-        from core.domain.entities import TutorialStep
-        await tutorial_service.update_tutorial_step(user_id, TutorialStep.EMPLOYER_LICENSE)
-
-        logger.info(f"✅ Шаг туториала обновлен")
-
-        # Показываем результат
-        from config.texts import TUTORIAL_TOWNHALL_REGISTERED
-        text = TUTORIAL_TOWNHALL_REGISTERED.format(username=username)
-
-        await callback.message.edit_text(
-            text,
-            reply_markup=get_tutorial_keyboard("townhall_registered"),
-            parse_mode=None  # Отключаем markdown на всякий случай
-        )
-
-        await callback.answer("✅ Вы стали гражданином!", show_alert=True)
-        logger.info(f"🎉 Регистрация завершена успешно для {user_id}")
-
-    except Exception as e:
-        logger.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА регистрации для {callback.from_user.id}: {e}", exc_info=True)
-        await callback.answer(f"Ошибка регистрации: {str(e)[:100]}", show_alert=True)
 
 
 @router.callback_query(F.data == "tutorial_employer_license")
