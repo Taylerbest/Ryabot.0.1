@@ -47,7 +47,7 @@ class SupabaseUserRepository(UserRepository):
                     ) if user_data.get('energy_updated_at') else datetime.now()
                 ),
                 liquid_experience=user_data.get('liquid_experience', 0),
-                golden_shards=user_data.get('golden_shards', 0),
+                golden_shards=user_data.get('golden_shards', 1),
                 golden_keys=user_data.get('golden_keys', 0),
                 wood=user_data.get('wood', 0),
                 q_points=user_data.get('q_points', 0)
