@@ -26,8 +26,9 @@ class BlockchainService:
 
     def set_bot(self, bot):
         """Установить экземпляр бота"""
-        self.bot = bot
-        logger.info("✅ Bot instance установлен в blockchain_service")
+        if not self.bot:
+            logger.warning("⚠️ Bot instance не установлен, пропускаем отправку в каналы")
+            return None
 
     async def _ensure_client(self):
         """Обеспечиваем подключение к БД"""

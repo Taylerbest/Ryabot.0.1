@@ -1,34 +1,49 @@
 # core/domain/entities.py
 """
-Доменные сущности игры - переработанные под новый туториал
+Доменные сущности для Ryabot Island - новая архитектура
 """
 
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from dataclasses import dataclass, field
 from enum import Enum
 
 class TutorialStep(Enum):
-    """Шаги туториала"""
+    """Шаги туториала и системы заданий"""
+    # Выбор языка и персонажа
     NOT_STARTED = "not_started"
-    CHARACTER_CREATION = "character_creation"  # Создание персонажа
-    SHIPWRECK = "shipwreck"                   # Кораблекрушение
-    TAVERN_VISIT = "tavern_visit"            # Посещение таверны
-    PAWN_SHOP = "pawn_shop"                  # Ломбард - продажа осколка
-    TOWN_HALL_REGISTER = "town_hall_register" # Регистрация в ратуше
-    EMPLOYER_LICENSE = "employer_license"     # Покупка лицензии работодателя
-    ACADEMY_HIRE = "academy_hire"            # Найм рабочего в академии
-    WORK_TASK = "work_task"                  # Выполнение работы
-    CITIZEN_QUEST = "citizen_quest"          # Получение опыта у жителя
-    TRAIN_SPECIALIST = "train_specialist"    # Обучение специалиста
-    FARM_LICENSE = "farm_license"            # Покупка фермерской лицензии
-    BUY_LAND = "buy_land"                    # Покупка земли
-    BUILD_CROP_BED = "build_crop_bed"        # Постройка грядки
-    PLANT_GRAIN = "plant_grain"              # Посадка зерна
-    BUILD_HENHOUSE = "build_henhouse"        # Постройка курятника
-    BUY_CHICKEN = "buy_chicken"              # Покупка курицы
-    COMPLETED = "completed"                  # Туториал завершен
+    LANGUAGE_SELECTION = "language_selection"
+    CHARACTER_CREATION = "character_creation"
+    
+    # Сюжетная линия
+    SHIPWRECK = "shipwreck"                 # Кораблекрушение
+    TAVERN_VISIT = "tavern_visit"           # Посещение таверны
+    PAWN_SHOP = "pawn_shop"                 # Ломбард - продажа осколка
+    TOWN_HALL_REGISTER = "town_hall_register"   # Регистрация в ратуше
+    EMPLOYER_LICENSE = "employer_license"    # Покупка лицензии работодателя
+    
+    # Доступ к острову получен, но есть задания
+    ISLAND_ACCESS_GRANTED = "island_access_granted"  # Игрок может входить на остров
+    
+    # Задания (выполняются через интерфейс)
+    TASK_HIRE_WORKER = "task_hire_worker"       # Задание: нанять рабочего
+    TASK_FIRST_WORK = "task_first_work"         # Задание: первая работа
+    TASK_CITIZEN_QUEST = "task_citizen_quest"   # Задание: получить опыт у жителя
+    TASK_TRAIN_SPECIALIST = "task_train_specialist"  # Задание: обучить специалиста
+    TASK_BUY_FARM_LICENSE = "task_buy_farm_license"  # Задание: фермерская лицензия
+    TASK_BUY_LAND = "task_buy_land"             # Задание: купить землю
+    TASK_BUILD_CROP_BED = "task_build_crop_bed" # Задание: построить грядку
+    TASK_PLANT_GRAIN = "task_plant_grain"       # Задание: посадить зерно
+    TASK_BUILD_HENHOUSE = "task_build_henhouse" # Задание: построить курятник
+    TASK_BUY_CHICKEN = "task_buy_chicken"       # Задание: купить курицу
+    
+    COMPLETED = "completed"                     # Туториал завершен
+
+class Language(Enum):
+    """Поддерживаемые языки"""
+    RU = "ru"
+    EN = "en"
 
 class CharacterPreset(Enum):
     """Персонажи для выбора"""
@@ -42,6 +57,13 @@ class CharacterPreset(Enum):
     PRESET_8 = 8   # Бородатый ремесленник
     PRESET_9 = 9   # Элегантная дама
     PRESET_10 = 10 # Суровый воин
+
+class QuestStatus(Enum):
+    """Статус задания"""
+    LOCKED = "locked"           # Заблокировано
+    AVAILABLE = "available"     # Доступно
+    IN_PROGRESS = "in_progress" # В процессе
+    COMPLETED = "completed"     # Завершено
 
 @dataclass
 class RBTC:
@@ -80,27 +102,42 @@ class Energy:
 @dataclass
 class Resources:
     """Ресурсы пользователя"""
-    ryabucks: int = 0                    # Начинаем с 0, получим из осколка
+    ryabucks: int = 0
     rbtc: RBTC = field(default_factory=RBTC)
     energy: Energy = field(default_factory=Energy)
     liquid_experience: int = 0
-    golden_shards: int = 1               # Начинаем с 1 осколка!
+    golden_shards: int = 1               # Начинаем с осколка
     golden_keys: int = 0
     wood: int = 0
+    stone: int = 0
+    grain: int = 0
     q_points: int = 0
 
-@dataclass 
+@dataclass
+class Quest:
+    """Задание в системе заданий"""
+    quest_id: str
+    title: str
+    description: str
+    status: QuestStatus = QuestStatus.LOCKED
+    rewards: Dict[str, int] = field(default_factory=dict)
+    requirements: Dict[str, Any] = field(default_factory=dict)
+    completion_condition: str = ""  # Что нужно сделать для завершения
+
+@dataclass
 class User:
     """Пользователь игры"""
     user_id: int
     username: Optional[str] = None
+    language: Language = Language.RU
     resources: Resources = field(default_factory=Resources)
     level: int = 1
     experience: int = 0
     
-    # Статус туториала
+    # Статус туториала и заданий
     tutorial_step: TutorialStep = TutorialStep.NOT_STARTED
     tutorial_completed: bool = False
+    current_quests: List[Quest] = field(default_factory=list)
     
     # Персонаж
     character_preset: CharacterPreset = CharacterPreset.PRESET_1
@@ -110,7 +147,8 @@ class User:
         "feet": None  # босиком
     })
     
-    # Лицензии
+    # Лицензии и доступы
+    has_island_access: bool = False      # Может ли войти на остров
     has_employer_license: bool = False
     has_farm_license: bool = False
     
@@ -118,7 +156,6 @@ class User:
     quantum_pass_until: Optional[datetime] = None
     
     # Мета
-    language: str = "ru"  # Только русский
     created_at: datetime = field(default_factory=datetime.now)
     last_active: datetime = field(default_factory=datetime.now)
     
@@ -127,17 +164,29 @@ class User:
         return (self.quantum_pass_until is not None and 
                 self.quantum_pass_until > datetime.now())
     
-    def get_energy_regen_rate(self) -> int:
-        """Скорость восстановления энергии (минуты на 1 единицу)"""
-        base_rate = 15  # 15 минут на 1 энергию
-        if self.has_quantum_pass():
-            return base_rate // 2  # x2 скорость с Quantum Pass
-        return base_rate
+    def can_access_island(self) -> bool:
+        """Может ли игрок войти на остров"""
+        return self.has_island_access or self.tutorial_step in [
+            TutorialStep.ISLAND_ACCESS_GRANTED,
+            TutorialStep.TASK_HIRE_WORKER,
+            TutorialStep.TASK_FIRST_WORK,
+            TutorialStep.TASK_CITIZEN_QUEST,
+            TutorialStep.TASK_TRAIN_SPECIALIST,
+            TutorialStep.TASK_BUY_FARM_LICENSE,
+            TutorialStep.TASK_BUY_LAND,
+            TutorialStep.TASK_BUILD_CROP_BED,
+            TutorialStep.TASK_PLANT_GRAIN,
+            TutorialStep.TASK_BUILD_HENHOUSE,
+            TutorialStep.TASK_BUY_CHICKEN,
+            TutorialStep.COMPLETED
+        ]
     
-    def can_work(self, energy_cost: int = 5) -> bool:
-        """Проверка возможности работать"""
-        current_energy = self.resources.energy.regenerate(self.get_energy_regen_rate())
-        return current_energy.current >= energy_cost
+    def get_current_quest(self) -> Optional[Quest]:
+        """Получить текущее активное задание"""
+        for quest in self.current_quests:
+            if quest.status == QuestStatus.AVAILABLE:
+                return quest
+        return None
 
 @dataclass
 class Specialist:
@@ -169,8 +218,9 @@ class WorkTask:
     ryabucks_reward: int
     experience_reward: int
     rbtc_reward: Decimal = Decimal('0')
-    requirements: Dict[str, Any] = field(default_factory=dict)  # specialist_type, level, etc
-    location: str = "sea"  # sea, farm, construction, forest, anomaly, expedition
+    requirements: Dict[str, Any] = field(default_factory=dict)
+    location: str = "sea"
+    can_skip: bool = False  # Можно ли пропустить
 
 @dataclass
 class Building:
@@ -197,7 +247,7 @@ class Animal:
     """Животное на ферме"""
     id: Optional[int] = None
     user_id: int = 0
-    animal_type: str = "chicken"  # chicken, rooster, horse
+    animal_type: str = "chicken"
     
     # Характеристики
     egg_production: int = 1
@@ -206,7 +256,7 @@ class Animal:
     lifespan: int = 30
     
     # Статус
-    status: str = "alive"  # alive, dead, sick
+    status: str = "alive"
     born_at: datetime = field(default_factory=datetime.now)
     last_fed: Optional[datetime] = None
     last_collected: Optional[datetime] = None
@@ -216,11 +266,11 @@ class LandPlot:
     """Участок земли"""
     plot_id: int
     owner_id: Optional[int] = None
-    zone_type: str = "plains"  # plains, forest, mountains, coast, anomaly
+    zone_type: str = "plains"
     zone_bonus: Dict[str, int] = field(default_factory=dict)
     price_rbtc: int = 0
-    price_ryabucks: int = 1000  # Базовая цена участка
-    status: str = "available"  # undiscovered, available, owned, for_sale
+    price_ryabucks: int = 1000
+    status: str = "available"
 
 @dataclass
 class UserStats:
