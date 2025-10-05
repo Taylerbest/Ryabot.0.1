@@ -235,34 +235,55 @@ async def tutorial_pawnshop(callback: CallbackQuery):
         logger.error(f"Ошибка туториала ломбарда: {e}")
         await callback.answer("Ошибка", show_alert=True)
 
+
 @router.callback_query(F.data == "tutorial_sell_shard")
 async def tutorial_sell_shard(callback: CallbackQuery):
-    """Продажа золотого осколка"""
+    """Продать осколок в ломбарде"""
     try:
         user_id = callback.from_user.id
         username = callback.from_user.username or f"user_{user_id}"
 
-        # Обновляем ресурсы: убираем осколок, добавляем рябаксы
+        # Получаем use cases
         use_cases = await get_user_use_cases()
+        profile = await use_cases['get_profile'].execute(user_id)
+
+        if not profile:
+            await callback.answer("Ошибка получения профиля", show_alert=True)
+            return
+
+        # Проверяем наличие осколка
+        if profile.get('golden_shards', 0) < 1:
+            await callback.answer("У вас нет золотого осколка!", show_alert=True)
+            return
+
+        # Продаём осколок - начисляем 500 рябаксов, убираем 1 осколок
         await use_cases['update_resources'].execute(user_id, {
-            "ryabucks": 500,
-            "golden_shards": 0
+            "ryabucks": profile['ryabucks'] + 500,
+            "golden_shards": profile['golden_shards'] - 1
         })
 
-        # Логируем в блокчейн
+        # Логируем продажу
         await blockchain_service.log_action(
             "SHARD_SOLD", user_id, username,
             {"shard_type": "golden", "price": 500, "currency": "ryabucks"},
-            significance=1  # Важное событие
+            significance=1
         )
 
+        # Обновляем шаг туториала
         await tutorial_service.update_tutorial_step(user_id, TutorialStep.TOWN_HALL_REGISTER)
 
+        # Показываем результат
         await callback.message.edit_text(
             TUTORIAL_PAWNSHOP_SOLD,
             reply_markup=get_tutorial_keyboard("pawnshop_sold")
         )
-        await callback.answer("💰 Осколок продан за 500 рябаксов!", show_alert=True)
+
+        await callback.answer("✅ Осколок продан за 500 рябаксов!", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка продажи осколка: {e}")
+        await callback.answer("Ошибка продажи", show_alert=True)
+
 
     except Exception as e:
         logger.error(f"Ошибка продажи осколка: {e}")
