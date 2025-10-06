@@ -56,8 +56,8 @@ async def get_citizen_data(user_id: int) -> dict:
         return {
             "username": user_data.get('username', 'user'),
             "registration_date": registration_date,
-            "farmer_rank": "Новичок",
-            "employer_rank": "LV1" if user_data.get('has_employer_license') else "—",
+            "farmer_rank": "—",
+            "employer_rank": "—",
             "trader_rank": "—",
             "burner_rank": "—",
             "explorer_rank": "—",
@@ -103,55 +103,84 @@ async def show_citizen_menu(message: Message):
 
 @router.callback_query(F.data == "citizen_tasks")
 async def citizen_tasks(callback: CallbackQuery):
-    """Задания жителя - показываем текущие квесты"""
     try:
-        user_id = callback.from_user.id
+        userid = callback.from_user.id
 
-        # Получаем текущее задание
-        current_quest = await quest_service.get_current_quest(user_id)
+        from services.questservice import questservice
+        from adapters.database.supabase.client import get_supabase_client
+        client = await get_supabase_client()
 
-        if current_quest:
-            # Есть активное задание
-            quest_text = f"""
-📝 *АКТИВНОЕ ЗАДАНИЕ*
+        # Получаем текущий шаг туториала
+        userdata = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["tutorialstep", "tutorialcompleted"],
+            filters={"userid": userid},
+            single=True
+        )
 
-*{current_quest['title']}*
+        if not userdata:
+            await callback.answer("❌ Ошибка", show_alert=True)
+            return
 
-{current_quest['description']}
+        tutorialstep = TutorialStep(userdata.get("tutorialstep", "notstarted"))
+        tutorial_completed = userdata.get("tutorialcompleted", False)
 
-💡 *Как выполнить:*
-{current_quest['instruction']}
+        # ИСПРАВЛЕНИЕ: Показываем квест "Начало" если туториал не завершён
+        if not tutorial_completed:
+            # Квест "Начало" включает весь путь до покупки первой курицы
+            quest_stages = {
+                TutorialStep.ISLANDACCESSGRANTED: "✅ Получен доступ на остров\n⏳ Наймите работника в Академии",
+                TutorialStep.TASKHIREWORKER: "✅ Доступ на остров\n⏳ Наймите работника за 30 рябаксов",
+                TutorialStep.TASKFIRSTWORK: "✅ Работник нанят\n⏳ Выполните первую работу в море",
+                TutorialStep.TASKCITIZENQUEST: "✅ Первая работа выполнена\n⏳ Посетите ратушу",
+                TutorialStep.TASKTRAINSPECIALIST: "✅ Зарегистрированы в ратуше\n⏳ Обучите специалиста",
+                TutorialStep.TASKBUYFARMLICENSE: "✅ Специалист обучен\n⏳ Купите фермерскую лицензию",
+                TutorialStep.TASKBUYLAND: "✅ Лицензия получена\n⏳ Купите участок земли",
+                TutorialStep.TASKBUILDCROPBED: "✅ Земля куплена\n⏳ Постройте грядку",
+                TutorialStep.TASKPLANTGRAIN: "✅ Грядка построена\n⏳ Посадите зерно",
+                TutorialStep.TASKBUILDHENHOUSE: "✅ Зерно посажено\n⏳ Постройте курятник",
+                TutorialStep.TASKBUYCHICKEN: "✅ Курятник построен\n⏳ Купите первую курицу в магазине"
+            }
 
-🎁 *{current_quest['reward_text']}*
-            """.strip()
+            progress_text = quest_stages.get(
+                tutorialstep,
+                "⏳ Продолжайте выполнять задания"
+            )
+
+            quest_text = f"""📝 ЗАДАНИЕ: НАЧАЛО
+
+🎯 Цель: Обустроить свою ферму на острове
+
+{progress_text}
+
+💰 Награда: 200 рябаксов, 100 опыта при полном выполнении"""
 
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_citizen")]
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="backtocitizen")]
             ])
-        else:
-            # Все задания выполнены
-            quest_text = """
-📝 *ЗАДАНИЯ*
+
+            await callback.message.edit_text(quest_text, reply_markup=keyboard)
+            await callback.answer()
+            return
+
+        # Если туториал завершён, показываем другие задания или сообщение
+        quest_text = """📝 ЗАДАНИЯ
 
 🎉 Поздравляем! Все базовые задания выполнены!
 
-Продолжайте развивать свою ферму и исследовать остров.
-            """.strip()
+Продолжайте развивать свою ферму и исследовать остров."""
 
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_citizen")]
-            ])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="backtocitizen")]
+        ])
 
-        await callback.message.edit_text(
-            quest_text,
-            reply_markup=keyboard
-        )
-
+        await callback.message.edit_text(quest_text, reply_markup=keyboard)
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Ошибка заданий: {e}")
-        await callback.answer("Ошибка", show_alert=True)
+        logger.error(f"Citizen tasks error: {e}")
+        await callback.answer("❌ Ошибка", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("citizen_"))

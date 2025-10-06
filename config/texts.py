@@ -349,6 +349,7 @@ LEADERBOARD_MENU = """
 └[🤝] {top_partner}
 """
 
+
 # === МЕНЮ ДРУЗЕЙ ===
 FRIENDS_MENU = """
 👥 «РЕФЕРАЛЬНАЯ ИМПЕРИЯ» ℹ️
@@ -645,20 +646,6 @@ WELCOME_TO_ISLAND = """
 1️⃣ Новые/день: {new_today}
 📅 Новые/месяц: {new_month}
 🪪 Обладатели Q-Pass: {qpass_holders}
-"""
-
-ISLAND_MENU = """
-🏝️ Остров Ryabot
-
-Добро пожаловать, {username}!
-🆙 Уровень: {level} | 📊 Опыт: {experience}
-
-💰 Ресурсы:
-💵 Рябаксы: {ryabucks:,}
-💠 RBTC: {rbtc:.4f}
-⚡ Энергия: {energy}/{energy_max}
-
-🎮 Выберите действие:
 """
 
 # === РАБОТЫ (СТАРЫЕ ТЕКСТЫ) ===

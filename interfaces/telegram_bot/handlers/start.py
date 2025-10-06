@@ -268,12 +268,6 @@ async def enter_island(message: Message, state: FSMContext):
             reply_markup=get_stats_keyboard("rbtc")
         )
 
-        # Отправляем нижнее меню
-        await message.answer(
-            "🏝 Выберите раздел:",
-            reply_markup=get_island_menu()
-        )
-
         logger.info(f"✅ Успешный вход на остров для {user_id}")
 
     except Exception as e:
