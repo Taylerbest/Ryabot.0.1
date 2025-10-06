@@ -17,6 +17,7 @@ from .inventory import router as inventory_router
 from .friends import router as friends_router
 from .leaderboard import router as leaderboard_router
 from .other import router as other_router
+from .map import router as map_router
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ async def setup_handlers(dp: Dispatcher):
         # ВАЖНО: Порядок регистрации имеет значение!
         # Специфичные handlers должны быть ВЫШЕ более общих
 
+        dp.include_router(map_router)  # Карта острова WebApp
         dp.include_router(tutorial_router)  # Туториал (специфичный)
         dp.include_router(citizen_router)  # Житель
         dp.include_router(town_router)  # Город
