@@ -136,3 +136,13 @@ async def back_to_town(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка возврата в город: {e}")
         await callback.answer("Ошибка", show_alert=True)
+
+@router.callback_query(F.data == "town_academy")
+async def town_academy(callback: CallbackQuery):
+    """Переход в академию"""
+    try:
+        from .academy import show_academy_menu
+        await show_academy_menu(callback)
+    except Exception as e:
+        logger.error(f"❌ Ошибка академии: {e}")
+        await callback.answer("Ошибка", show_alert=True)

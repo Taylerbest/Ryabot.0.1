@@ -133,6 +133,22 @@ BTN_MARKET_SEEDS = "🌱 Семена"
 BTN_MARKET_RESOURCES = "🪵 Ресурсы"
 BTN_MARKET_FOOD = "🍞 Еда"
 
+# Академия
+BTN_LABOR_EXCHANGE = "💼 Биржа труда"
+BTN_EXPERT_COURSES = "🎓 Курсы экспертов"
+BTN_TRAINING_CLASS = "📚 Класс обучения"
+BTN_HIRE_WORKER = "👷 Нанять рабочего"
+
+# Специальности
+SPECIALTY_FARMER = "👨‍🌾 Фермер"
+SPECIALTY_BUILDER = "🏗️ Строитель"
+
+SPECIALTY_ABILITIES = {
+    "farmer": "• Работать на фермах\n• Ухаживать за животными\n• Выращивать растения\n• +25% к доходу с животноводства",
+    "builder": "• Строить здания\n• Ремонтировать постройки\n• Работать на стройке\n• +25% к скорости строительства"
+}
+
+
 # ==========================================
 # ТЕКСТЫ НОВЫХ МЕНЮ
 # ==========================================
@@ -144,7 +160,7 @@ ISLAND_MAIN_MENU = """
 ├👥 Друзья: {friends_total}
 ├🏕 Вылазки: {expeditions_total}
 ├⚠️ Аномалии: {anomalies_total}
-├🥊 Петуш. Бои: {fights_total}
+├🥊 Кок-Файт: {fights_total}
 ├🏇 Скачки: {races_total}
 └📦 Ящики: {boxes_total}
 """

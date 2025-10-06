@@ -7,6 +7,7 @@ import asyncio
 import logging
 import sys
 import os
+import io
 from pathlib import Path
 
 # Добавляем родительскую директорию в Python path
@@ -19,15 +20,18 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config.settings import settings
 from interfaces.telegram_bot.handlers import setup_handlers
+from interfaces.telegram_bot.middlewares import setup_middlewares
 from adapters.database.supabase.client import get_supabase_client, close_supabase_client
 
-# Настройка логирования
+# Настройка логирования с поддержкой UTF-8 для Windows
+console_handler = logging.StreamHandler(io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8'))
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('logs/bot.log', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
+        console_handler
     ]
 )
 
@@ -70,6 +74,9 @@ async def initialize_app():
         # Регистрация handlers
         await setup_handlers(dp)
         logger.info("✅ Handlers зарегистрированы")
+
+        # Регистрация middlewares
+        await setup_middlewares(dp)
 
         # Инициализация game stats
         from config.game_stats import game_stats
@@ -129,5 +136,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("⚠️ Программа прервана пользователем")
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка при запуске: {e}")
+        logger.error(f"❌ Критическая ошибка при запуске: {e}")  # <-- ИСПРАВЛЕНО: убрана лишняя скобка
         sys.exit(1)

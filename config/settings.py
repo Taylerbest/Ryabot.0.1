@@ -151,3 +151,8 @@ if config_errors:
     exit(1)
 
 print(f"✅ Настройки загружены: {settings.DATABASE_TYPE.value} БД")
+
+
+ADMIN_IDS = [
+    6471957469
+]

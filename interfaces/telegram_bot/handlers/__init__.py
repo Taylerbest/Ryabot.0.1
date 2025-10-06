@@ -18,6 +18,8 @@ from .friends import router as friends_router
 from .leaderboard import router as leaderboard_router
 from .other import router as other_router
 from .map import router as map_router
+from .admin import router as admin_router
+from .academy import router as academy_router
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,8 @@ async def setup_handlers(dp: Dispatcher):
         # ВАЖНО: Порядок регистрации имеет значение!
         # Специфичные handlers должны быть ВЫШЕ более общих
 
+        dp.include_router(admin_router)
+        dp.include_router(academy_router)
         dp.include_router(map_router)  # Карта острова WebApp
         dp.include_router(tutorial_router)  # Туториал (специфичный)
         dp.include_router(citizen_router)  # Житель
