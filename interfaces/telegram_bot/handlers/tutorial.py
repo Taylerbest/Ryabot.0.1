@@ -397,8 +397,7 @@ async def tutorial_register(callback: CallbackQuery):
             table="users",
             operation="update",
             data={
-                "ryabucks": new_ryabucks,
-                "has_island_access": True
+                "ryabucks": new_ryabucks
             },
             filters={"user_id": user_id}
         )
@@ -418,8 +417,6 @@ async def tutorial_register(callback: CallbackQuery):
 Поздравляю, гражданин @{username}!
 
 💰 Потрачено: 10 рябаксов
-
-🏝 Теперь вы можете входить на остров!
 """
 
         await callback.message.edit_text(
@@ -494,7 +491,8 @@ async def tutorial_buy_employer_license(callback: CallbackQuery):
             operation="update",
             data={
                 "ryabucks": new_ryabucks,
-                "has_employer_license": True
+                "has_employer_license": True,
+                "has_island_access": True
             },
             filters={"user_id": user_id}
         )
@@ -510,8 +508,10 @@ async def tutorial_buy_employer_license(callback: CallbackQuery):
         await tutorial_service.update_tutorial_step(user_id, TutorialStep.ISLAND_ACCESS_GRANTED)
 
         # Показываем результат
-        text = TUTORIAL_LICENSE_BOUGHT.format(remaining=new_ryabucks)
-        await callback.message.edit_text()
+        await callback.message.edit_text(
+            text=TUTORIAL_LICENSE_BOUGHT.format(remaining=new_ryabucks),
+            parse_mode="Markdown"
+        )
 
         await callback.answer("✅ Лицензия куплена!", show_alert=True)
 

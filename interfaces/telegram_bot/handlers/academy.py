@@ -62,17 +62,7 @@ async def show_academy_menu(callback: CallbackQuery):
     try:
         user_id = callback.from_user.id
 
-        # Проверяем доступ
-        has_access = await quest_service.can_access_feature(user_id, "academy")
 
-        if not has_access:
-            await callback.message.edit_text(
-                f"🎓 *АКАДЕМИЯ*\n\n{SECTION_LOCKED}",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_town")]
-                ])
-            )
-            return
 
         # Получаем статистику академии
         client = await get_supabase_client()
@@ -117,18 +107,7 @@ async def academy_hire(callback: CallbackQuery):
     try:
         user_id = callback.from_user.id
 
-        # Проверяем доступ
-        has_access = await quest_service.can_access_feature(user_id, "academy_hire")
 
-        if not has_access:
-            await callback.message.edit_text(
-                f"💼 *БИРЖА ТРУДА*\n\n{SECTION_LOCKED}",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_academy")]
-                ])
-            )
-            await callback.answer()
-            return
 
         # Получаем профиль пользователя
         from interfaces.telegram_bot.handlers.start import get_user_use_cases
@@ -261,18 +240,6 @@ async def academy_train(callback: CallbackQuery):
     try:
         user_id = callback.from_user.id
 
-        # Проверяем доступ
-        has_access = await quest_service.can_access_feature(user_id, "academy_train")
-
-        if not has_access:
-            await callback.message.edit_text(
-                f"🎓 *КУРСЫ ЭКСПЕРТОВ*\n\n{SECTION_LOCKED}",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_academy")]
-                ])
-            )
-            await callback.answer()
-            return
 
         # Получаем профиль
         from interfaces.telegram_bot.handlers.start import get_user_use_cases

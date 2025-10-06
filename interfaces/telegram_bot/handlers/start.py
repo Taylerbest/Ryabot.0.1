@@ -56,7 +56,7 @@ def get_island_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
-        one_time_keyboard=False,
+        is_persistent=True,
         input_field_placeholder="Выберите раздел острова"
     )
 
@@ -259,14 +259,23 @@ async def enter_island(message: Message, state: FSMContext):
         logger.info(f"✅ Доступ разрешен для {user_id}")
 
         # Показываем НОВОЕ меню со статистикой
+
+        await message.answer(
+            "🏝",  # Минимальный текст
+            reply_markup=get_island_menu()
+        )
+
         stats = await get_island_stats()
         menu_text = ISLAND_MAIN_MENU.format(**stats)
+
+
 
         # Отправляем инлайн меню со статистикой
         await message.answer(
             menu_text,
             reply_markup=get_stats_keyboard("rbtc")
         )
+
 
         logger.info(f"✅ Успешный вход на остров для {user_id}")
 
