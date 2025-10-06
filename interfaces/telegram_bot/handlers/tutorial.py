@@ -511,10 +511,7 @@ async def tutorial_buy_employer_license(callback: CallbackQuery):
 
         # Показываем результат
         text = TUTORIAL_LICENSE_BOUGHT.format(remaining=new_ryabucks)
-        await callback.message.edit_text(
-            text,
-            reply_markup=get_tutorial_keyboard("license_bought")
-        )
+        await callback.message.edit_text()
 
         await callback.answer("✅ Лицензия куплена!", show_alert=True)
 
@@ -580,7 +577,7 @@ async def tutorial_buy_employer_license(callback: CallbackQuery):
 
         await callback.message.edit_text(
             text,
-            reply_markup=get_tutorial_keyboard("license_bought")
+            reply_markup=None
         )
         await callback.answer("📜 Лицензия получена!", show_alert=True)
 

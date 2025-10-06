@@ -1,13 +1,12 @@
 # interfaces/telegram_bot/handlers/start.py
 """
-Стартовый handler с выбором языка и системой заданий
+Главный handler с новой структурой меню + сохранением туториала
 """
 
 import logging
 from datetime import datetime
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, \
-    InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
@@ -41,26 +40,63 @@ def get_start_menu() -> ReplyKeyboardMarkup:
         keyboard=keyboard,
         resize_keyboard=True,
         one_time_keyboard=False,
-        input_field_placeholder=PLACEHOLDER_MENU
+        input_field_placeholder="Выберите действие"
     )
 
 
 def get_island_menu() -> ReplyKeyboardMarkup:
-    """Меню острова"""
+    """Главное меню острова - ФИНАЛЬНЫЕ НАЗВАНИЯ (БЕЗ кнопки выхода)"""
     keyboard = [
         [KeyboardButton(text=BTN_FARM), KeyboardButton(text=BTN_TOWN)],
         [KeyboardButton(text=BTN_CITIZEN), KeyboardButton(text=BTN_WORK)],
         [KeyboardButton(text=BTN_INVENTORY), KeyboardButton(text=BTN_FRIENDS)],
-        [KeyboardButton(text=BTN_LEADERBOARD), KeyboardButton(text=BTN_OTHER)],
-        [KeyboardButton(text=BTN_LEAVE_ISLAND)]
+        [KeyboardButton(text=BTN_LEADERBOARD), KeyboardButton(text=BTN_OTHER)]
     ]
 
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
         one_time_keyboard=False,
-        input_field_placeholder=PLACEHOLDER_MENU
+        input_field_placeholder="Выберите раздел острова"
     )
+
+
+def get_stats_keyboard(selected: str = "rbtc") -> InlineKeyboardMarkup:
+    """Инлайн кнопки статистики - переключение эмодзи пальца"""
+    keyboard_data = {
+        "rbtc": ["👉📊💠", "📊🏡", "📊🏢", "📊💼"],
+        "farm": ["📊💠", "👉📊🏡", "📊🏢", "📊💼"],
+        "city": ["📊💠", "📊🏡", "👉📊🏢", "📊💼"],
+        "work": ["📊💠", "📊🏡", "📊🏢", "👉📊💼"]
+    }
+
+    buttons = keyboard_data.get(selected, keyboard_data["rbtc"])
+
+    keyboard = [
+        [
+            InlineKeyboardButton(text=buttons[0], callback_data="stats_rbtc"),
+            InlineKeyboardButton(text=buttons[1], callback_data="stats_farm"),
+            InlineKeyboardButton(text=buttons[2], callback_data="stats_city"),
+            InlineKeyboardButton(text=buttons[3], callback_data="stats_work")
+        ]
+    ]
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+async def get_island_stats() -> dict:
+    """Получить статистику острова для главного меню"""
+    # TODO: Получать реальные данные из БД
+    return {
+        "total_rbtc_mined": 0,
+        "quantum_labs": 0,
+        "friends_total": 0,
+        "expeditions_total": 0,
+        "anomalies_total": 0,
+        "fights_total": 0,
+        "races_total": 0,
+        "boxes_total": 0
+    }
 
 
 async def format_welcome_message(stats: dict) -> str:
@@ -130,7 +166,7 @@ async def cmd_start(message: Message, state: FSMContext):
             )
             return
 
-        # Если туториал в процессе
+        # Если туториал в процессе (до доступа к острову)
         if tutorial_step not in [TutorialStep.COMPLETED, TutorialStep.ISLAND_ACCESS_GRANTED]:
             hint = tutorial_service.get_next_step_hint(tutorial_step)
             await message.answer(f"🎯 Туториал в процессе\n\n{hint}")
@@ -193,7 +229,7 @@ async def select_language(callback: CallbackQuery):
 
 @router.message(F.text == BTN_ENTER_ISLAND)
 async def enter_island(message: Message, state: FSMContext):
-    """Вход на остров - ИСПРАВЛЕННЫЙ"""
+    """Вход на остров - показываем новое меню со статистикой"""
     try:
         user_id = message.from_user.id
 
@@ -204,8 +240,7 @@ async def enter_island(message: Message, state: FSMContext):
         user_data = await client.execute_query(
             table="users",
             operation="select",
-            columns=["tutorial_step", "has_island_access", "has_employer_license", "ryabucks", "rbtc", "energy",
-                     "energy_max", "level", "experience", "username"],
+            columns=["tutorial_step", "has_island_access", "has_employer_license"],
             filters={"user_id": user_id},
             single=True
         )
@@ -215,34 +250,27 @@ async def enter_island(message: Message, state: FSMContext):
             await message.answer("❌ Пользователь не найден")
             return
 
-        logger.info(
-            f"📊 has_island_access={user_data.get('has_island_access')}, has_employer_license={user_data.get('has_employer_license')}")
-
         # Проверяем доступ
         if not user_data.get('has_island_access', False) and not user_data.get('has_employer_license', False):
             logger.warning(f"⚠️ Нет доступа для {user_id}")
             await message.answer("🎯 Сначала завершите туториал!")
             return
 
-        logger.info(f"✅ Доступ разрешен")
+        logger.info(f"✅ Доступ разрешен для {user_id}")
 
-        # Формируем меню и текст
-        island_text = f"""
-🏝️ Остров Ryabot
+        # Показываем НОВОЕ меню со статистикой
+        stats = await get_island_stats()
+        menu_text = ISLAND_MAIN_MENU.format(**stats)
 
-Добро пожаловать, {user_data.get('username', 'Островитянин')}!
-🆙 Уровень: {user_data.get('level', 1)} | 📊 Опыт: {user_data.get('experience', 0)}
-
-💰 Ресурсы:
-💵 Рябаксы: {user_data.get('ryabucks', 0):,}
-💠 RBTC: {user_data.get('rbtc', 0):.4f}
-⚡ Энергия: {user_data.get('energy', 30)}/{user_data.get('energy_max', 30)}
-
-🎮 Выберите действие:
-"""
-
+        # Отправляем инлайн меню со статистикой
         await message.answer(
-            island_text,
+            menu_text,
+            reply_markup=get_stats_keyboard("rbtc")
+        )
+
+        # Отправляем нижнее меню
+        await message.answer(
+            "🏝 Выберите раздел:",
             reply_markup=get_island_menu()
         )
 
@@ -253,119 +281,130 @@ async def enter_island(message: Message, state: FSMContext):
         await message.answer(ERROR_ENTER_ISLAND)
 
 
-# === ВЫХОД С ОСТРОВА ===
+# === ОБРАБОТЧИКИ СТАТИСТИКИ ===
 
-@router.message(F.text == BTN_LEAVE_ISLAND)
-async def leave_island(message: Message, state: FSMContext):
-    """Выход с острова"""
+@router.callback_query(F.data.startswith("stats_"))
+async def handle_stats(callback: CallbackQuery):
+    """Обработка переключения статистики"""
     try:
-        stats = await game_stats.get_all_stats()
-        welcome_text = await format_welcome_message(stats)
+        stats_type = callback.data.split("_")[1]
 
-        await message.answer(
-            welcome_text,
-            reply_markup=get_start_menu()
+        # Получаем статистику
+        stats = await get_island_stats()
+        menu_text = ISLAND_MAIN_MENU.format(**stats)
+
+        # Обновляем с новыми кнопками (палец переместился)
+        await callback.message.edit_text(
+            menu_text,
+            reply_markup=get_stats_keyboard(stats_type)
         )
 
+        await callback.answer()
+
     except Exception as e:
-        logger.error(f"❌ Ошибка выхода: {e}")
-        await message.answer(ERROR_GENERAL)
+        logger.error(f"Ошибка статистики: {e}")
+        await callback.answer("Ошибка", show_alert=True)
 
 
-# === ЖИТЕЛЬ ===
+# === ОБРАБОТЧИКИ ГЛАВНОГО МЕНЮ ===
 
-@router.message(F.text == BTN_CITIZEN)
-async def citizen_menu(message: Message):
-    """Меню жителя"""
+@router.message(F.text == BTN_TOWN)
+async def town_menu(message: Message):
+    """Меню города"""
     try:
-        user_id = message.from_user.id
-
-        current_quest = await quest_service.get_current_quest(user_id)
-
-        if current_quest:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=BTN_CITIZEN_QUESTS, callback_data="citizen_quests")],
-                [InlineKeyboardButton(text=BTN_CITIZEN_PROFILE, callback_data="citizen_profile")]
-            ])
-
-            quest_text = f"""
-👤 ЖИТЕЛЬ ОСТРОВА
-
-📋 Текущее задание:
-{current_quest['title']}
-
-{current_quest['description']}
-
-💡 Как выполнить:
-{current_quest['instruction']}
-
-🎁 {current_quest['reward_text']}
-            """.strip()
-        else:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=BTN_CITIZEN_PROFILE, callback_data="citizen_profile")]
-            ])
-            quest_text = "👤 ЖИТЕЛЬ ОСТРОВА\n\n🎉 Все задания выполнены!"
-
-        await message.answer(quest_text, reply_markup=keyboard)
-
+        from .town import show_town_menu
+        await show_town_menu(message)
     except Exception as e:
-        logger.error(f"❌ Ошибка меню жителя: {e}")
+        logger.error(f"❌ Ошибка города: {e}")
         await message.answer(ERROR_GENERAL)
-
-
-# === ЗАГЛУШКИ ===
-
-@router.message(F.text == BTN_FARM)
-async def farm_menu(message: Message):
-    await message.answer(f"🐔 ФЕРМА\n\n{SECTION_UNDER_DEVELOPMENT}")
 
 
 @router.message(F.text == BTN_WORK)
 async def work_menu(message: Message):
+    """Меню работ"""
     try:
         from .work import show_work_menu
         await show_work_menu(message)
     except Exception as e:
-        logger.error(f"Ошибка работ: {e}")
+        logger.error(f"❌ Ошибка работ: {e}")
+        await message.answer(ERROR_GENERAL)
+
+
+@router.message(F.text == BTN_CITIZEN)
+async def citizen_menu(message: Message):
+    """Меню жителя - переадресуем в отдельный handler"""
+    try:
+        from .citizen import show_citizen_menu
+        await show_citizen_menu(message)
+    except Exception as e:
+        logger.error(f"❌ Ошибка жителя: {e}")
+        await message.answer(ERROR_GENERAL)
+
+
+@router.message(F.text == BTN_FARM)
+async def farm_menu(message: Message):
+    """Меню фермы"""
+    try:
+        from .farm import show_farm_menu
+        await show_farm_menu(message)
+    except Exception as e:
+        logger.error(f"❌ Ошибка фермы: {e}")
         await message.answer(ERROR_GENERAL)
 
 
 @router.message(F.text == BTN_INVENTORY)
 async def inventory_menu(message: Message):
-    await message.answer(f"🎒 ИНВЕНТАРЬ\n\n{SECTION_UNDER_DEVELOPMENT}")
+    """Меню рюкзака"""
+    try:
+        from .inventory import show_inventory_menu
+        await show_inventory_menu(message)
+    except Exception as e:
+        logger.error(f"❌ Ошибка рюкзака: {e}")
+        await message.answer(ERROR_GENERAL)
 
 
 @router.message(F.text == BTN_FRIENDS)
 async def friends_menu(message: Message):
-    await message.answer(f"👥 ДРУЗЬЯ\n\n{SECTION_UNDER_DEVELOPMENT}")
+    """Меню друзей"""
+    try:
+        from .friends import show_friends_menu
+        await show_friends_menu(message)
+    except Exception as e:
+        logger.error(f"❌ Ошибка друзей: {e}")
+        await message.answer(ERROR_GENERAL)
 
 
 @router.message(F.text == BTN_LEADERBOARD)
 async def leaderboard_menu(message: Message):
-    await message.answer(f"🏆 РЕЙТИНГ\n\n{SECTION_UNDER_DEVELOPMENT}")
+    """Меню лидерборда"""
+    try:
+        from .leaderboard import show_leaderboard_menu
+        await show_leaderboard_menu(message)
+    except Exception as e:
+        logger.error(f"❌ Ошибка лидерборда: {e}")
+        await message.answer(ERROR_GENERAL)
 
 
 @router.message(F.text == BTN_OTHER)
 async def other_menu(message: Message):
-    await message.answer(f"📋 ЕЩЁ\n\n{SECTION_UNDER_DEVELOPMENT}")
+    """Меню прочего"""
+    try:
+        from .other import show_other_menu
+        await show_other_menu(message)
+    except Exception as e:
+        logger.error(f"❌ Ошибка прочего: {e}")
+        await message.answer(ERROR_GENERAL)
 
+
+# === СТАРЫЕ КНОПКИ ДЛЯ СОВМЕСТИМОСТИ ===
 
 @router.message(F.text == BTN_SETTINGS)
 async def settings_menu(message: Message):
-    await message.answer(f"⚙️ НАСТРОЙКИ\n\n{SECTION_UNDER_DEVELOPMENT}")
+    """Настройки"""
+    await message.answer(f"⚙️ *НАСТРОЙКИ*\n\n{SECTION_UNDER_DEVELOPMENT}")
 
 
 @router.message(F.text == BTN_SUPPORT)
 async def support_menu(message: Message):
-    await message.answer(f"🆘 ПОДДЕРЖКА\n\n{SECTION_UNDER_DEVELOPMENT}")
-
-
-@router.message(F.text == BTN_TOWN)
-async def town_menu(message: Message):
-    try:
-        from .town import show_town_menu
-        await show_town_menu(message)
-    except Exception as e:
-        logger.error(f"Ошибка города: {e}")
-        await message.answer(ERROR_GENERAL)
+    """Поддержка"""
+    await message.answer(f"🆘 *ПОДДЕРЖКА*\n\n{SECTION_UNDER_DEVELOPMENT}")

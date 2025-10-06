@@ -1,85 +1,377 @@
 # config/texts.py
 """
-Все тексты для бота - исправлена markdown разметка (безопасная версия)
+Все тексты для бота - ФИНАЛЬНЫЕ НАЗВАНИЯ КНОПОК
+ВНИМАНИЕ: Названия кнопок НЕЛЬЗЯ менять! Они установлены пользователем!
 """
 
-# === КНОПКИ МЕНЮ ===
+# ==========================================
+# ОСНОВНЫЕ КНОПКИ МЕНЮ (ФИНАЛЬНЫЕ НАЗВАНИЯ)
+# ==========================================
 
-# Выбор языка
-BTN_LANGUAGE_RU = "🇷🇺 Русский"
-BTN_LANGUAGE_EN = "🇺🇸 English"
-
-# Стартовое меню (вне острова)
-BTN_ENTER_ISLAND = "🏝 Войти на остров"
-BTN_SETTINGS = "⚙️ Настройки"
-BTN_SUPPORT = "🆘 Поддержка"
-
-# Меню острова
-BTN_FARM = "🐔 Ферма"
-BTN_TOWN = "🏘️ Город"
+# Главное меню острова (нижние кнопки)
+BTN_FARM = "🏡 Ферма"
+BTN_TOWN = "🏢 Город"
 BTN_CITIZEN = "👤 Житель"
 BTN_WORK = "💼 Рябота"
-BTN_INVENTORY = "🎒 Инвентарь"
+BTN_INVENTORY = "🎒 Рюкзак"
 BTN_FRIENDS = "👥 Друзья"
-BTN_LEADERBOARD = "🏆 Рейтинг"
-BTN_OTHER = "📋 Ещё"
-BTN_LEAVE_ISLAND = "🚪 Покинуть остров"
+BTN_LEADERBOARD = "🏆 Лидеры"
+BTN_OTHER = "🗄 Прочее"
 
-# Здания города
-BTN_TOWNHALL = "🏛️ Ратуша"
+# Статистические кнопки (верхний инлайн ряд)
+BTN_STATS_RBTC = "👉📊💠"
+BTN_STATS_FARM = "📊🏡"
+BTN_STATS_CITY = "📊🏢"
+BTN_STATS_WORK = "📊💼"
+
+# === КНОПКИ ГОРОДА ===
+BTN_TOWNHALL = "🏛 Ратуша"
 BTN_MARKET = "🛒 Рынок"
-BTN_ACADEMY = "🎓 Академия"
-BTN_RYABANK = "🏦 РяБанк"
-BTN_PRODUCTS = "📦 Товары"
+BTN_RYABANK = "🏦 Рябанк"
+BTN_SHOP = "🏪 Магазин"
 BTN_PAWNSHOP = "💍 Ломбард"
 BTN_TAVERN = "🍻 Таверна"
-BTN_ENTERTAINMENT = "🎪 Развлечения"
-BTN_REALESTATE = "🖼️ Недвижка"
-BTN_VETCLINIC = "🏥 Ветклиника"
-BTN_CONSTRUCTION = "🏗️ Строй-Сам"
+BTN_ACADEMY = "🏫 Академия"
+BTN_FORTUNE = "🎡 Фортуна"
+BTN_REALESTATE = "🏞 Недвижка"
+BTN_VETCENTER = "❤️‍🩹 Ветцентр"
+BTN_CONSTRUCTION = "🏗 Стройсам"
 BTN_HOSPITAL = "🏥 Больница"
-BTN_QUANTUMHUB = "⚛️ Квантум-Хаб"
-BTN_CEMETERY = "⚰️ Кладбище"
+BTN_QUANTUMHUB = "⚛️ Квантхаб"
+BTN_CEMETERY = "🪦 Кладбище"
 
-# Работы (Рябота)
-BTN_WORK_ANOMALIES = "⚠️ Аномалии"
-BTN_WORK_EXPEDITION = "🏕 Экспедиция"
-BTN_WORK_FARM = "🏡 Ферма"
+# === КНОПКИ РАБОТ ===
+BTN_WORK_BREACH = "⚠️ Брешь"
+BTN_WORK_EXPEDITION = "🏕 Вылазка"
 BTN_WORK_CITY = "🏢 Город"
+BTN_WORK_FARM = "🏡 Ферма"
 BTN_WORK_FOREST = "🌲 Лес"
 BTN_WORK_SEA = "🌊 Море"
 
-# Рынок
+# === КНОПКИ ЖИТЕЛЯ ===
+BTN_CITIZEN_PROPERTIES = "🏞 Владения"
+BTN_CITIZEN_WARDROBE = "🥼 Гардероб"
+BTN_CITIZEN_HISTORY = "📖 История"
+BTN_CITIZEN_TASKS = "📝 Задачи"
+BTN_CITIZEN_ACHIEVEMENTS = "🎯 Достижения"
+BTN_CITIZEN_STATISTICS = "📊 Статистика"
+
+# === КНОПКИ ФЕРМЫ ===
+BTN_FARM_HENHOUSE = "🐔 Курятник"
+BTN_FARM_COWSHED = "🐄 Коровник"
+BTN_FARM_SHEEPFOLD = "🐑 Овчарня"
+BTN_FARM_PIGSTY = "🐖 Свинарник"
+BTN_FARM_APIARY = "🐝 Пасека"
+BTN_FARM_GARDEN = "🪴 Огород"
+BTN_FARM_FORESTRY = "🌳 Лесхоз"
+BTN_FARM_FISHPOND = "🌊 Рыбник"
+BTN_FARM_MINE = "🪨 Рудник"
+BTN_FARM_VILLAGE = "🏘 Деревня"
+BTN_FARM_QUANTUMLAB = "⚛️ КвантЛаб"
+BTN_FARM_STABLE = "🐎 Конюшня"
+
+# === КНОПКИ РЮКЗАКА ===
+BTN_INVENTORY_WALLET = "👉💰 Кошелек"
+BTN_INVENTORY_PASSES = "🎫 Допуски"
+BTN_INVENTORY_PRODUCTS = "🥚 Продукты"
+BTN_INVENTORY_HARVEST = "🥕 Урожай"
+BTN_INVENTORY_ANIMALS = "🐮 Животные"
+BTN_INVENTORY_SEEDS = "🍃 Семена"
+BTN_INVENTORY_RESOURCES = "🪵 Ресурсы"
+BTN_INVENTORY_BOXES = "📦 Коробки"
+
+# === КНОПКИ ЛИДЕРБОРДА ===
+BTN_LEADERS_FARM = "🏡 Top 50"
+BTN_LEADERS_WORK = "💼 Top 50"
+BTN_LEADERS_TRADE = "⚖️ Top 50"
+BTN_LEADERS_EXPEDITION = "🏕 Top 50"
+BTN_LEADERS_GAMBLING = "🎲 Top 50"
+BTN_LEADERS_FIGHT = "🥊 Top 50"
+BTN_LEADERS_RACING = "🏇 Top 50"
+BTN_LEADERS_RBTC = "💠 Top 50"
+BTN_LEADERS_PARTNER = "🤝 Top 50"
+
+# === КНОПКИ ДРУЗЕЙ ===
+BTN_FRIENDS_MY = "👥 Мои Друзья"
+BTN_FRIENDS_STORAGE = "🪙 Хранилище"
+BTN_FRIENDS_SHOP = "🎟 Магазин"
+
+# === КНОПКИ ПРОЧЕГО ===
+BTN_OTHER_CHAT = "💬 Чат"
+BTN_OTHER_WIKI = "🔮 Вики"
+BTN_OTHER_HISTORY = "📖 История"
+BTN_OTHER_DESIGN = "🎨 Дизайн"
+
+# === УНИВЕРСАЛЬНЫЕ ===
+BTN_BACK = "↩️ Назад"
+BTN_CONTINUE = "➡️ Продолжить"
+
+# ==========================================
+# СТАРЫЕ КНОПКИ ДЛЯ СОВМЕСТИМОСТИ С ТУТОРИАЛОМ
+# ==========================================
+
+BTN_LANGUAGE_RU = "🇷🇺 Русский"
+BTN_LANGUAGE_EN = "🇺🇸 English"
+BTN_ENTER_ISLAND = "🏝 Войти на остров"
+BTN_SETTINGS = "⚙️ Настройки"
+BTN_SUPPORT = "🆘 Поддержка"
+BTN_TUTORIAL_START = "🚀 Начать приключение"
+BTN_TUTORIAL_NEXT = "➡️ Далее"
+BTN_TUTORIAL_SKIP = "⏭️ Пропустить"
+BTN_TUTORIAL_COMPLETE = "✅ Завершить"
+BTN_YES = "✅ Да"
+BTN_NO = "❌ Нет"
+BTN_WATCH_AD = "📺 Посмотреть рекламу"
+BTN_LABOR_EXCHANGE = "💼 Биржа труда"
+BTN_EXPERT_COURSES = "🎓 Курсы экспертов"
+BTN_TRAINING_CLASS = "📚 Класс обучения"
+BTN_HIRE_WORKER = "👷 Нанять рабочего"
+BTN_CITIZEN_QUESTS = "📋 Задания"
+BTN_CITIZEN_PROFILE = "👤 Профиль"
 BTN_MARKET_ANIMALS = "🐔 Животные"
 BTN_MARKET_SEEDS = "🌱 Семена"
 BTN_MARKET_RESOURCES = "🪵 Ресурсы"
 BTN_MARKET_FOOD = "🍞 Еда"
 
-# Академия
-BTN_LABOR_EXCHANGE = "💼 Биржа труда"
-BTN_EXPERT_COURSES = "🎓 Курсы экспертов"
-BTN_TRAINING_CLASS = "📚 Класс обучения"
-BTN_HIRE_WORKER = "👷 Нанять рабочего"
+# ==========================================
+# ТЕКСТЫ НОВЫХ МЕНЮ
+# ==========================================
 
-# Житель
-BTN_CITIZEN_QUESTS = "📋 Задания"
-BTN_CITIZEN_PROFILE = "👤 Профиль"
-BTN_CITIZEN_ACHIEVEMENTS = "🏆 Достижения"
+# === ГЛАВНОЕ МЕНЮ ОСТРОВА ===
+ISLAND_MAIN_MENU = """
+💠 Добыто: {total_rbtc_mined} (сколько всего RBTC добыто игроками)
+├⚛️ КвантЛаб: {quantum_labs}
+├👥 Друзья: {friends_total}
+├🏕 Вылазки: {expeditions_total}
+├⚠️ Аномалии: {anomalies_total}
+├🥊 Петуш. Бои: {fights_total}
+├🏇 Скачки: {races_total}
+└📦 Ящики: {boxes_total}
+"""
 
-# Туториал
-BTN_TUTORIAL_START = "🚀 Начать приключение"
-BTN_TUTORIAL_NEXT = "➡️ Далее"
-BTN_TUTORIAL_SKIP = "⏭️ Пропустить"
-BTN_TUTORIAL_COMPLETE = "✅ Завершить"
+# === МЕНЮ ГОРОДА ===
+TOWN_MENU = """
+🏢 ГОРОД ℹ️ [🔋{energy}]
 
-# Универсальные
-BTN_BACK = "🔙 Назад"
-BTN_YES = "✅ Да"
-BTN_NO = "❌ Нет"
-BTN_CONTINUE = "➡️ Продолжить"
-BTN_WATCH_AD = "📺 Посмотреть рекламу"
+«Жужжащий улей коммерции и хаоса! Воздух наполнен болтовнёй торговцев, расхваливающих свои товары, банкиров, пересчитывающих золотые яйца, и строителей, таскающих свежую древесину. В каждом переулке есть возможности — если знать, где искать».
+"""
 
-# === ВЫБОР ЯЗЫКА ===
+# === МЕНЮ РАБОТ ===
+WORK_MENU = """
+〰️〰️ 💼 РЯБОТА ℹ️ [🔋{energy}] 〰️〰️
+
+📋 КОМАНДА (здесь сколько всего работников)
+├🙍‍♂️ Рабочий: {workers_total}
+├👷 Строитель: {builders_total}
+├👩‍🌾 Фермер: {farmers_total}
+├👨‍🚒 Лесник: {foresters_total}
+├🎣 Рыбак: {fishermen_total}
+├🧑‍🍳 Повар: {cooks_total}
+├🧑‍⚕️ Доктор: {doctors_total}
+├🧑‍🔬 Ученый: {scientists_total}
+├🧑‍🏫 Учитель: {teachers_total}
+├💂 Q-Солдат: {q_soldiers_total}
+
+📊 Выполнено работ: {works_completed}
+〰️〰️〰️〰️
+💠 Пул Аномалий: {anomaly_pool}
+💠 Пул Экспедиций: {expedition_pool}
+🌟[💼] Рейтинг: {work_rating}
+"""
+
+# === МЕНЮ ЖИТЕЛЯ ===
+CITIZEN_MENU = """
+〰️ 👤 CITIZEN ID ℹ️ 〰️
+├─ Имя: @{username}
+└─ Регистрация: {registration_date}
+
+🏆 РАНГИ 🏆
+├🏡 Фермер: [{farmer_rank}]
+├💼 Работодатель: [{employer_rank}]
+├⚖️ Торговец: [{trader_rank}]
+├💠 Сжигатель: [{burner_rank}]
+├🏕 Исследователь: [{explorer_rank}]
+├🎲 Азартник: [{gambler_rank}]
+├🏇 Гонщик: [{racer_rank}]
+├🥊 Боец: [{fighter_rank}]
+└🤝 Партнер: [{partner_rank}]
+
+🧪 Жидкий Опыт: {liquid_experience}
+🧿 Q-Очки: {q_points}
+"""
+
+# === МЕНЮ ФЕРМЫ ===
+FARM_MENU = """
+〰️〰️ 🏡 ФЕРМА ℹ 〰️〰️
+
+#️⃣ ID Фермера: #{farmer_id}
+🖼 Площадь: {total_area} Га
+〰️〰️〰️〰️
+💠 Пул Лабораторий: {lab_pool}
+🌟 Рейтинг Фермера: {farmer_rating}
+"""
+
+# === МЕНЮ РЮКЗАКА ===
+INVENTORY_MENU = """
+〰️💰 КОШЕЛЕК💰〰️
+
+💵 Рябаксы: {ryabucks}
+💠 RBTC: {rbtc}
+
+〰️ 🎒 STORAGE ℹ️ 〰️
+{storage_percent}% ({storage_used:,}/{storage_total:,})
+"""
+
+INVENTORY_PASSES = """
+🎒ДОПУСКИ
+├🎫[🏕]: {expedition_passes}
+├🎫[⚠️]: {anomaly_passes}
+├🎫[🏡]: {farm_passes}
+├🎫[🏢]: {city_passes}
+├🎫[🌲]: {forest_passes}
+├🎫[🌊]: {sea_passes}
+├🎫[🥊]: {fight_passes}
+└📦[🏇]: {race_passes}
+"""
+
+INVENTORY_PRODUCTS = """
+🎒ПРОДУКТЫ
+├🥚 Яйцо: {eggs}
+├🥛 Молоко: {milk}
+├🍯 Мед: {honey}
+├ 🐟 Рыба: {fish}
+├🍗[🐔] Курятина: {chicken_meat}
+├🍗[🐥] Цыпленок: {chick_meat}
+├🥓 Свинина: {pork}
+├🥩 Говядина: {beef}
+├🥩 Телятина: {veal}
+├🍖 Баранина: {mutton}
+├🍖 Конина: {horse_meat}
+└🍖 Дичь: {game_meat}
+"""
+
+INVENTORY_HARVEST = """
+🎒УРОЖАЙ
+├🌾 Зерно: {grain}
+├🍅 Помидоры: {tomatoes}
+├🥒 Огурцы: {cucumbers}
+├🥔 Картофель: {potatoes}
+├🥕 Морковь: {carrots}
+└🍇 Виноград: {grapes}
+"""
+
+INVENTORY_ANIMALS = """
+🎒ЖИВОТНЫЕ
+├🐔 Ряба: {chickens}
+├🐓 Петух: {roosters}
+├🐥 Цыпленок: {chicks}
+├🐄 Корова: {cows}
+├🐂 Бык: {bulls}
+├🐮 Теленок: {calves}
+├🐖 Свинья: {pigs}
+├🐷 Поросенок: {piglets}
+├🐑 Овца: {sheep}
+├🐑 Ягненок: {lambs}
+├🐝 Пчела: {bees}
+├🐎 Лошадь: {horses}
+└🐴 Жеребенок: {foals}
+"""
+
+INVENTORY_SEEDS = """
+🎒СЕМЕНА
+├🌱[🌳] Саженцы: {saplings}
+├🍃[🌾] Зерно: {grain_seeds}
+├🍃[🍅] Помидоры: {tomato_seeds}
+├🍃[🥒] Огурцы: {cucumber_seeds}
+├🍃[🥔] Картофель: {potato_seeds}
+├🍃[🥕] Морковь: {carrot_seeds}
+└🍃[🍇] Виноград: {grape_seeds}
+"""
+
+INVENTORY_RESOURCES = """
+🎒РЕСУРСЫ
+├⚜️ Золотое Яйцо: {golden_eggs}
+├💫 Золотые Осколки: {golden_shards}
+├🪶 Перо: {feathers}
+├🕯 Пчелиный Воск: {beeswax}
+├🧶 Конский Волос: {horse_hair}
+├🧶 Овечья Шерсть: {sheep_wool}
+├🪥 Щетина: {bristles}
+├🟫 Кожа: {leather}
+├🦴 Кости: {bones}
+├💩 Навоз: {manure}
+├🪨 Камень: {stone}
+└🪵 Древесина: {wood}
+"""
+
+INVENTORY_BOXES = """
+🎒КОРОБКИ
+├📦[🆓] Free: {free_boxes}
+├📦[🏡] Ферма: {farm_boxes}
+├📦[💼] Рябота: {work_boxes}
+├📦[💠] RBTC: {rbtc_boxes}
+├📦[🏕] Вылазки: {expedition_boxes}
+├📦[🥊] Схватки: {fight_boxes}
+├📦[🏇] Скачки: {race_boxes}
+├📦[🎫] Допуски: {pass_boxes}
+└─🔑 Ключи: {keys}
+"""
+
+# === МЕНЮ ЛИДЕРОВ ===
+LEADERBOARD_MENU = """
+〰️〰️ 🏆 ЛИДЕРЫ ℹ️ 〰️〰️
+
+👑 ЛЕГЕНДЫ & ЧЕМПИОНЫ 👑
+├[🏡] {top_farmer}
+├[💼] {top_employer}
+├[⚖️] {top_trader}
+├[🏕] {top_explorer}
+├[🎲] {top_gambler}
+├[🥊] {top_fighter}
+├[🏇] {top_racer}
+├[💠] {top_rbtc}
+└[🤝] {top_partner}
+"""
+
+# === МЕНЮ ДРУЗЕЙ ===
+FRIENDS_MENU = """
+👥 «РЕФЕРАЛЬНАЯ ИМПЕРИЯ» ℹ️
+
+🔗 Ваша реф. ссылка:
+https://t.me/ryabot?start={{user_id}}
+
+💼 Реф Балансы:
+├ 💠 RBTC: {ref_rbtc}
+├ 💵 Рябаксы: {ref_ryabucks}
+└ 🎟 Билеты: {ref_tickets}
+
+💰Всего Заработано:
+├─ 💠: {total_rbtc}
+├─ 💵: {total_ryabucks}
+└─ 🎟: {total_tickets}
+〰️〰️〰️〰️
+👥 Друзья: {friends_count}
+🤝 Знакомые: {acquaintances_count}
+🌐 Окружение: {network_count}
+
+ℹ️ Приглашай друзей в ₽ЯБОТ и получай награды! /ref_rewards
+〰️〰️〰️〰️
+💠 Партнерский Пул: {partner_pool}
+🌟 Рейтинг Партнера: {partner_rating}
+"""
+
+# === МЕНЮ ПРОЧЕГО ===
+OTHER_MENU = """
+〰️〰️ 🗄 ПРОЧЕЕ ℹ️ 〰️〰️
+
+₽ЯБОТ — это увлекательный симулятор фермерства с социальными элементами. Стройте свою ферму, ухаживайте за животными, выращивайте урожай и торгуйте ресурсами. Нанимайте работников и распределяйте между ними обязанности!
+
+🤖 Отправляйтесь навстречу приключениям и станьте опытным фермером!
+"""
+
+# ==========================================
+# ТЕКСТЫ ТУТОРИАЛА (СОХРАНЕНЫ ИЗ СТАРОЙ ВЕРСИИ)
+# ==========================================
 
 LANGUAGE_SELECTION_TITLE = """
 🌍 Выбор языка / Language Selection
@@ -99,8 +391,6 @@ LANGUAGE_SELECTED_EN = """
 
 Welcome to Ryabot Island! Now create your character.
 """
-
-# === ПЕРСОНАЖИ ===
 
 CHARACTER_NAMES = {
     1: "Молодой авантюрист",
@@ -127,8 +417,6 @@ CHARACTER_DESCRIPTIONS = {
     9: "👸 Изящна и умна. Привыкла к роскоши.",
     10: "⚔️ Закалён в боях. Защитит от любой угрозы."
 }
-
-# === ТЕКСТЫ ТУТОРИАЛА ===
 
 CHARACTER_CREATION_TITLE = """
 🎭 СОЗДАНИЕ ПЕРСОНАЖА
@@ -234,19 +522,20 @@ TUTORIAL_EMPLOYER_LICENSE = """
 💼 Купить лицензию за 100 рябаксов?
 """
 
+# ИСПРАВЛЕННАЯ ВЕРСИЯ - БЕЗ КНОПКИ
 TUTORIAL_LICENSE_BOUGHT = """
-✅ ЛИЦЕНЗИЯ ПОЛУЧЕНА!
+✅ *ЛИЦЕНЗИЯ ПОЛУЧЕНА!*
 
-📜 Лицензия Работодателя LV1 активна!
+📜 *Лицензия Работодателя LV1* активна!
 
-🎉 Поздравляем! Теперь у вас есть полный доступ к острову!
+🎉 *Поздравляем! Теперь у вас есть полный доступ к острову!*
 
-Вы можете свободно перемещаться по острову, но для продолжения развития следуйте заданиям во вкладке Житель.
+Вы можете свободно перемещаться по острову, но для продолжения развития следуйте заданиям во вкладке *👤 Житель*.
 
-💰 Потрачено: 100 рябаксов
-Осталось: {remaining} рябаксов
+💰 *Потрачено:* 100 💵 рябаксов
+*Осталось:* {remaining} 💵 рябаксов
 
-🎯 Следующее задание: Наймите первого рабочего в Академии!
+🎯 *Следующее задание:* Наймите первого рабочего в Академии!
 """
 
 # === СИСТЕМА ЗАДАНИЙ ===
@@ -329,7 +618,7 @@ QUESTS = {
     }
 }
 
-# === СТАНДАРТНЫЕ ТЕКСТЫ ===
+# === СТАРЫЕ СТАНДАРТНЫЕ ТЕКСТЫ ===
 
 WELCOME_TO_ISLAND = """
 🏝️ Добро пожаловать на остров Ryabot!
@@ -356,26 +645,7 @@ ISLAND_MENU = """
 🎮 Выберите действие:
 """
 
-# Ошибки
-ERROR_NOT_ENOUGH_MONEY = "💰 Недостаточно рябаксов! Нужно {amount}."
-ERROR_NOT_ENOUGH_ENERGY = "⚡ Недостаточно энергии! Нужно {amount}."
-ERROR_GENERAL = "❌ Произошла ошибка. Попробуйте ещё раз."
-ERROR_ENTER_ISLAND = "❌ Ошибка входа на остров."
-ERROR_ACCESS_DENIED = "🚫 Доступ ограничен. Завершите текущие задания."
-ERROR_QUEST_NOT_AVAILABLE = "📋 Это задание пока недоступно."
-
-# Успех
-SUCCESS_ITEM_BOUGHT = "✅ {item} куплено за {price} рябаксов!"
-SUCCESS_TASK_COMPLETED = "✅ Задание выполнено! Получено: {rewards}"
-SUCCESS_BUILDING_BUILT = "✅ {building} построено!"
-SUCCESS_QUEST_COMPLETED = "✅ Задание {title} выполнено! {rewards}"
-
-# Заглушки
-SECTION_UNDER_DEVELOPMENT = "🚧 Раздел находится в разработке.\nСкоро здесь появится функционал!"
-SECTION_LOCKED = "🔒 Раздел заблокирован. Выполните задания во вкладке 👤 Житель."
-PLACEHOLDER_MENU = "🎯 Выберите действие - стройте, развивайтесь, зарабатывайте!"
-
-# === РАБОТЫ ===
+# === РАБОТЫ (СТАРЫЕ ТЕКСТЫ) ===
 
 WORK_MENU_TITLE = """
 💼 РЯБОТА
@@ -393,7 +663,8 @@ WORK_SEA_TITLE = """
 Подходят для всех типов рабочих.
 """
 
-# Энергия
+# === ЭНЕРГИЯ ===
+
 ENERGY_LOW_WARNING = """
 ⚡ Мало энергии!
 
@@ -414,7 +685,8 @@ AD_ENERGY_RESTORE = """
 Это заглушка рекламы для MVP. В продакшене здесь будет реальная реклама.
 """
 
-# Специальности
+# === СПЕЦИАЛЬНОСТИ ===
+
 SPECIALTY_FARMER = "👨‍🌾 Фермер"
 SPECIALTY_BUILDER = "🏗️ Строитель"
 
@@ -423,7 +695,8 @@ SPECIALTY_ABILITIES = {
     "builder": "• Строить здания\n• Ремонтировать постройки\n• Работать на стройке\n• +25% к скорости строительства"
 }
 
-# Рынок
+# === РЫНОК ===
+
 MARKET_MENU_TITLE = """
 🛒 РЫНОК ОСТРОВА
 
@@ -479,3 +752,25 @@ MARKET_RESOURCES_TITLE = """
 • Добывается в горах
 • Повышает прочность зданий
 """
+
+# === ОШИБКИ ===
+
+ERROR_NOT_ENOUGH_MONEY = "💰 Недостаточно рябаксов! Нужно {amount}."
+ERROR_NOT_ENOUGH_ENERGY = "⚡ Недостаточно энергии! Нужно {amount}."
+ERROR_GENERAL = "❌ Произошла ошибка. Попробуйте ещё раз."
+ERROR_ENTER_ISLAND = "❌ Ошибка входа на остров."
+ERROR_ACCESS_DENIED = "🚫 Доступ ограничен. Завершите текущие задания."
+ERROR_QUEST_NOT_AVAILABLE = "📋 Это задание пока недоступно."
+
+# === УСПЕХ ===
+
+SUCCESS_ITEM_BOUGHT = "✅ {item} куплено за {price} рябаксов!"
+SUCCESS_TASK_COMPLETED = "✅ Задание выполнено! Получено: {rewards}"
+SUCCESS_BUILDING_BUILT = "✅ {building} построено!"
+SUCCESS_QUEST_COMPLETED = "✅ Задание {title} выполнено! {rewards}"
+
+# === ЗАГЛУШКИ ===
+
+SECTION_UNDER_DEVELOPMENT = "🚧 Раздел находится в разработке.\nСкоро здесь появится функционал!"
+SECTION_LOCKED = "🔒 Раздел заблокирован. Выполните задания во вкладке 👤 Житель."
+PLACEHOLDER_MENU = "🎯 Выберите действие - стройте, развивайтесь, зарабатывайте!"
