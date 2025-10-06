@@ -65,6 +65,15 @@ async def show_town_menu(message: Message):
         logger.error(f"Ошибка меню города: {e}")
         await message.answer(ERROR_GENERAL)
 
+@router.callback_query(F.data == "town_academy")
+async def town_academy(callback: CallbackQuery):
+    """Переход в академию"""
+    try:
+        from .academy import show_academy_menu
+        await show_academy_menu(callback)
+    except Exception as e:
+        logger.error(f"❌ Ошибка академии: {e}")
+        await callback.answer("Ошибка", show_alert=True)
 
 # === ОБРАБОТЧИКИ ЗДАНИЙ ГОРОДА ===
 
@@ -81,7 +90,6 @@ async def handle_town_building(callback: CallbackQuery):
             "shop": "🏪 МАГАЗИН",
             "pawnshop": "💍 ЛОМБАРД",
             "tavern": "🍻 ТАВЕРНА",
-            "academy": "🏫 АКАДЕМИЯ",
             "fortune": "🎡 ФОРТУНА",
             "realestate": "🏞 НЕДВИЖКА",
             "vetcenter": "❤️‍🩹 ВЕТЦЕНТР",
@@ -137,12 +145,4 @@ async def back_to_town(callback: CallbackQuery):
         logger.error(f"Ошибка возврата в город: {e}")
         await callback.answer("Ошибка", show_alert=True)
 
-@router.callback_query(F.data == "town_academy")
-async def town_academy(callback: CallbackQuery):
-    """Переход в академию"""
-    try:
-        from .academy import show_academy_menu
-        await show_academy_menu(callback)
-    except Exception as e:
-        logger.error(f"❌ Ошибка академии: {e}")
-        await callback.answer("Ошибка", show_alert=True)
+

@@ -66,7 +66,7 @@ class GameStats:
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"last_active__gte": five_minutes_ago}
+                filters={"last_active": {"gte": five_minutes_ago}}
             )
 
             return len(result) if result else 0
@@ -86,13 +86,33 @@ class GameStats:
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"created_at__gte": today}
+                filters={"created_at": {"gte": today}}
             )
 
             return len(result) if result else 0
 
         except Exception as e:
             logger.error(f"Ошибка получения новых пользователей за день: {e}")
+            return 0
+
+    async def get_new_users_week(self) -> int:
+        """Получить количество новых пользователей за неделю"""
+        try:
+            await self._ensure_client()
+
+            week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+
+            result = await self.client.execute_query(
+                table="users",
+                operation="select",
+                columns=["user_id"],
+                filters={"created_at": {"gte": week_ago}}
+            )
+
+            return len(result) if result else 0
+
+        except Exception as e:
+            logger.error(f"Ошибка получения новых пользователей за неделю: {e}")
             return 0
 
     async def get_new_users_month(self) -> int:
@@ -106,7 +126,7 @@ class GameStats:
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"created_at__gte": month_ago}
+                filters={"created_at": {"gte": month_ago}}
             )
 
             return len(result) if result else 0
@@ -126,7 +146,7 @@ class GameStats:
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"quantum_pass_until__gte": now}
+                filters={"quantum_pass_until": {"gte": now}}
             )
 
             return len(result) if result else 0
@@ -142,6 +162,7 @@ class GameStats:
             'total_users': await self.get_total_users(),
             'online_users': await self.get_online_users(),
             'new_users_today': await self.get_new_users_today(),
+            'new_users_week': await self.get_new_users_week(),
             'new_users_month': await self.get_new_users_month(),
             'quantum_pass_holders': await self.get_quantum_pass_holders()
         }

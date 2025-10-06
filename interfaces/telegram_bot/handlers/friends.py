@@ -6,8 +6,9 @@ Handler меню друзей
 import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-
+from aiogram.types import LinkPreviewOptions
 from config.texts import *
+from config.settings import settings
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -27,8 +28,12 @@ def get_friends_keyboard():
 async def get_friends_data(user_id: int) -> dict:
     """Получить данные реферальной системы"""
     # TODO: Получать реальные данные из БД
+
+    referral_link = f"https://t.me/{settings.BOT_USERNAME}?start=ref{user_id}"
+
     return {
         "user_id": user_id,
+        "referral_link": referral_link,
         "ref_rbtc": 0,
         "ref_ryabucks": 0,
         "ref_tickets": 0,
@@ -53,7 +58,9 @@ async def show_friends_menu(message: Message):
 
         await message.answer(
             friends_text,
-            reply_markup=get_friends_keyboard()
+            reply_markup=get_friends_keyboard(),
+            parse_mode=None,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
 
     except Exception as e:
@@ -102,7 +109,9 @@ async def back_to_friends(callback: CallbackQuery):
 
         await callback.message.edit_text(
             friends_text,
-            reply_markup=get_friends_keyboard()
+            reply_markup=get_friends_keyboard(),
+            parse_mode=None,
+            link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
         await callback.answer()

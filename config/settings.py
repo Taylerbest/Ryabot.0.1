@@ -47,7 +47,7 @@ class Settings:
     
     # ========== TELEGRAM BOT ==========
     BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-    BOT_USERNAME: str = os.getenv("BOT_USERNAME", "ryabotislandbot")
+    BOT_USERNAME: str = os.getenv("BOT_USERNAME", "ryaBOT")
     
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN не установлен в .env файле!")
