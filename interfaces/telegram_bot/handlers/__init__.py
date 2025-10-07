@@ -20,7 +20,9 @@ from .other import router as other_router
 from .map import router as map_router
 from .admin import router as admin_router
 from .academy import router as academy_router
-from .bank import router as bank_router  # <- ДОБАВИТЬ
+from .quantum_pass import router as quantum_pass_router
+from .quantum_hub import router as quantum_hub_router
+from .bank import router as bank_router
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,8 @@ async def setup_handlers(dp: Dispatcher):
         dp.include_router(admin_router)
         dp.include_router(academy_router)
         dp.include_router(bank_router)  # Банк
+        dp.include_router(quantum_hub.router) #Квантхаб
+        dp.include_router(quantum_pass_router) # Q-Pass
         dp.include_router(map_router)  # Карта острова WebApp
         dp.include_router(tutorial_router)  # Туториал (специфичный)
         dp.include_router(citizen_router)  # Житель

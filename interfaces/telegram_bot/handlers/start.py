@@ -84,19 +84,66 @@ def get_stats_keyboard(selected: str = "rbtc") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
+async def get_total_burned_rbtc(client) -> float:
+    """Получить общее количество сожженных RBTC"""
+    try:
+        # ✅ ИСПРАВЛЕНО: используем pool_transactions вместо bank_transactions
+        burned_transactions = await client.execute_query(
+            table="bank_transactions",
+            operation="select",
+            columns=["amount_from"],
+            filters={"currency_to": "burned"}
+        )
+
+        if not burned_transactions:
+            return 0.0
+
+        # Суммировать все сожженные RBTC
+        total_burned = sum(float(tx.get('amount_from', 0)) for tx in burned_transactions)
+        return total_burned
+
+    except Exception as e:
+        logger.error(f"Ошибка получения сожженных RBTC: {e}")
+        return 0.0
+
+
 async def get_island_stats() -> dict:
-    """Получить статистику острова для главного меню"""
-    # TODO: Получать реальные данные из БД
-    return {
-        "total_rbtc_mined": 0,
-        "quantum_labs": 0,
-        "friends_total": 0,
-        "expeditions_total": 0,
-        "anomalies_total": 0,
-        "fights_total": 0,
-        "races_total": 0,
-        "boxes_total": 0
-    }
+    """Получить статистику острова"""
+    try:
+        client = await get_supabase_client()
+
+        # Вызвать функцию для получения сожженных RBTC
+        total_burned_rbtc = await get_total_burned_rbtc(client)
+
+        # Рассчитать процент
+        burn_percentage = (total_burned_rbtc / 17_850_000) * 100 if total_burned_rbtc > 0 else 0.0
+
+        return {
+            'total_rbtc_mined': 0,
+            'total_burned_rbtc': total_burned_rbtc,
+            'burn_percentage': burn_percentage,
+            'quantum_labs': 0,
+            'friends_total': 0,
+            'expeditions_total': 0,
+            'anomalies_total': 0,
+            'fights_total': 0,
+            'races_total': 0,
+            'boxes_total': 0
+        }
+    except Exception as e:
+        logger.error(f"Ошибка получения статистики острова: {e}")
+        return {
+            'total_rbtc_mined': 0,
+            'total_burned_rbtc': 0,
+            'burn_percentage': 0,
+            'quantum_labs': 0,
+            'friends_total': 0,
+            'expeditions_total': 0,
+            'anomalies_total': 0,
+            'fights_total': 0,
+            'races_total': 0,
+            'boxes_total': 0
+        }
 
 
 async def format_welcome_message(stats: dict) -> str:

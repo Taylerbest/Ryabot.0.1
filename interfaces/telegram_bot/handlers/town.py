@@ -96,6 +96,9 @@ async def handle_town_building(callback: CallbackQuery):
     try:
         building = callback.data.split("_")[1]
 
+        if building == 'quantumhub':
+            return  # Обрабатывается в quantum_hub.py
+
         building_names = {
             "hall": "🏛 РАТУША",
             "market": "🛒 РЫНОК",
@@ -107,7 +110,6 @@ async def handle_town_building(callback: CallbackQuery):
             "vetcenter": "❤️‍🩹 ВЕТЦЕНТР",
             "construction": "🏗 СТРОЙСАМ",
             "hospital": "🏥 БОЛЬНИЦА",
-            "quantumhub": "⚛️ КВАНТХАБ",
             "cemetery": "🪦 КЛАДБИЩЕ"
         }
 

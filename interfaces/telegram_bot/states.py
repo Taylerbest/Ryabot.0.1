@@ -44,3 +44,8 @@ class BankState(StatesGroup):
     SEND_RBTC_USER = State()
     SEND_RBTC_AMOUNT = State()
     SEND_RBTC_CONFIRM = State()
+
+# ═══ СОСТОЯНИЯ ПРОПУСКА (КВАНТХАБ) ═══
+class QuantumPassState(StatesGroup):
+    MAIN_MENU = State()
+    PURCHASE_CONFIRM = State()

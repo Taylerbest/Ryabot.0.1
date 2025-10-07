@@ -101,6 +101,7 @@ async def initialize_app():
         from services.bank_service import bank_service
         logger.info("✅ Bank service инициализирован")
 
+
         logger.info("🎉 Инициализация завершена успешно!")
 
     except Exception as e:
