@@ -20,6 +20,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config.settings import settings
 from interfaces.telegram_bot.handlers import setup_handlers
 from interfaces.telegram_bot.middlewares import setup_middlewares
+from interfaces.telegram_bot.middlewares.energy_middleware import EnergyMiddleware
+from interfaces.telegram_bot.middlewares.user_activity_middleware import UserActivityMiddleware
 from adapters.database.supabase.client import get_supabase_client, close_supabase_client
 
 # Настройка логирования с поддержкой UTF-8 для Windows
@@ -74,8 +76,22 @@ async def initialize_app():
         await setup_handlers(dp)
         logger.info("✅ Handlers зарегистрированы")
 
-        # Регистрация middlewares
+        # ✅ РЕГИСТРАЦИЯ MIDDLEWARE ДЛЯ АКТИВНОСТИ
+        logger.info("🔧 Регистрация middleware...")
+
+        # Middleware для отслеживания активности (ПЕРВЫМ!)
+        dp.message.middleware(UserActivityMiddleware(throttle_seconds=600))
+        dp.callback_query.middleware(UserActivityMiddleware(throttle_seconds=600))
+        logger.info("✅ UserActivityMiddleware зарегистрирован (throttle: 600 сек)")
+
+        # Middleware для энергии (ВТОРЫМ!)
+        dp.message.middleware(EnergyMiddleware())
+        dp.callback_query.middleware(EnergyMiddleware())
+        logger.info("✅ EnergyMiddleware зарегистрирован")
+
+        # Остальные middleware
         await setup_middlewares(dp)
+        logger.info("✅ Остальные middleware зарегистрированы")
 
         # Инициализация game stats
         from config.game_stats import game_stats

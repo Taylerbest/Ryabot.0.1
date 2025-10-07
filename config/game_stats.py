@@ -4,7 +4,7 @@
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone  # ✅ Добавили timezone
 from adapters.database.supabase.client import get_supabase_client
 
 logger = logging.getLogger(__name__)
@@ -56,20 +56,24 @@ class GameStats:
             return 0
 
     async def get_online_users(self) -> int:
-        """Получить количество онлайн пользователей (активны за последние 5 минут)"""
+        """Получить количество онлайн пользователей (активны за последний час)"""
         try:
             await self._ensure_client()
 
-            five_minutes_ago = (datetime.now() - timedelta(minutes=5)).isoformat()
+            # ✅ ИСПОЛЬЗУЕМ UTC timezone
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
 
             result = await self.client.execute_query(
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"last_active": {"gte": five_minutes_ago}}
+                filters={"last_active": {"gte": cutoff.isoformat()}}
             )
 
-            return len(result) if result else 0
+            count = len(result) if result else 0
+            logger.info(f"🔍 get_online_users: cutoff={cutoff.isoformat()}, count={count}")
+
+            return count
 
         except Exception as e:
             logger.error(f"Ошибка получения онлайн пользователей: {e}")
@@ -80,16 +84,22 @@ class GameStats:
         try:
             await self._ensure_client()
 
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            # ✅ ИСПОЛЬЗУЕМ UTC timezone
+            today = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
 
             result = await self.client.execute_query(
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"created_at": {"gte": today}}
+                filters={"created_at": {"gte": today.isoformat()}}
             )
 
-            return len(result) if result else 0
+            count = len(result) if result else 0
+            logger.info(f"🔍 get_new_users_today: today={today.isoformat()}, count={count}")
+
+            return count
 
         except Exception as e:
             logger.error(f"Ошибка получения новых пользователей за день: {e}")
@@ -100,13 +110,14 @@ class GameStats:
         try:
             await self._ensure_client()
 
-            week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+            # ✅ ИСПОЛЬЗУЕМ UTC timezone
+            week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
             result = await self.client.execute_query(
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"created_at": {"gte": week_ago}}
+                filters={"created_at": {"gte": week_ago.isoformat()}}
             )
 
             return len(result) if result else 0
@@ -120,13 +131,16 @@ class GameStats:
         try:
             await self._ensure_client()
 
-            month_ago = (datetime.now() - timedelta(days=30)).isoformat()
+            # ✅ ИСПОЛЬЗУЕМ UTC timezone
+            month_start = datetime.now(timezone.utc).replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
 
             result = await self.client.execute_query(
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"created_at": {"gte": month_ago}}
+                filters={"created_at": {"gte": month_start.isoformat()}}
             )
 
             return len(result) if result else 0
@@ -140,13 +154,14 @@ class GameStats:
         try:
             await self._ensure_client()
 
-            now = datetime.now().isoformat()
+            # ✅ ИСПОЛЬЗУЕМ UTC timezone
+            now = datetime.now(timezone.utc)
 
             result = await self.client.execute_query(
                 table="users",
                 operation="select",
                 columns=["user_id"],
-                filters={"quantum_pass_until": {"gte": now}}
+                filters={"quantum_pass_until": {"gte": now.isoformat()}}
             )
 
             return len(result) if result else 0
@@ -161,9 +176,9 @@ class GameStats:
             'uptime': self.get_uptime(),
             'total_users': await self.get_total_users(),
             'online_users': await self.get_online_users(),
-            'new_users_today': await self.get_new_users_today(),
-            'new_users_week': await self.get_new_users_week(),
-            'new_users_month': await self.get_new_users_month(),
+            'new_users_today': await self.get_new_users_today(),  # ✅ Исправлено
+            'new_users_week': await self.get_new_users_week(),  # ✅ Исправлено
+            'new_users_month': await self.get_new_users_month(),  # ✅ Исправлено
             'quantum_pass_holders': await self.get_quantum_pass_holders()
         }
 
