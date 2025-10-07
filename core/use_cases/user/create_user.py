@@ -174,7 +174,7 @@ class GetUserProfileUseCase:
         time_diff = (now - last_updated).total_seconds()
 
         # Сколько энергии восстановилось
-        regen_rate_seconds = user.get_energy_regen_rate() * 60  # минуты в секунды
+        regen_rate_seconds = 15 * 60  # минуты в секунды
         energy_restored = int(time_diff // regen_rate_seconds)
 
         # Текущая энергия (не больше максимума)

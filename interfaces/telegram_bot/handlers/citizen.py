@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-
+from core.domain.entities import TutorialStep
 from config.texts import *
 from services.quest_service import quest_service
 from adapters.database.supabase.client import get_supabase_client
@@ -104,47 +104,53 @@ async def show_citizen_menu(message: Message):
 @router.callback_query(F.data == "citizen_tasks")
 async def citizen_tasks(callback: CallbackQuery):
     try:
-        userid = callback.from_user.id
+        user_id = callback.from_user.id
+        logger.info(f"Citizen tasks called for user {user_id}")
 
-        from services.questservice import questservice
         from adapters.database.supabase.client import get_supabase_client
         client = await get_supabase_client()
+        logger.info("Supabase client obtained")
 
         # Получаем текущий шаг туториала
-        userdata = await client.execute_query(
+        user_data = await client.execute_query(
             table="users",
             operation="select",
-            columns=["tutorialstep", "tutorialcompleted"],
-            filters={"userid": userid},
+            columns=["tutorial_step", "tutorial_completed"],
+            filters={"user_id": user_id},
             single=True
         )
 
-        if not userdata:
-            await callback.answer("❌ Ошибка", show_alert=True)
+        logger.info(f"User data retrieved: {user_data}")
+
+        if not user_data:
+            logger.error("No user data found")
+            await callback.answer("❌ Ошибка: данные пользователя не найдены", show_alert=True)
             return
 
-        tutorialstep = TutorialStep(userdata.get("tutorialstep", "notstarted"))
-        tutorial_completed = userdata.get("tutorialcompleted", False)
+        tutorial_step_value = user_data.get("tutorial_step", "not_started")
+        tutorial_completed = user_data.get("tutorial_completed", False)
+
+        logger.info(f"Tutorial step: {tutorial_step_value}, completed: {tutorial_completed}")
 
         # ИСПРАВЛЕНИЕ: Показываем квест "Начало" если туториал не завершён
         if not tutorial_completed:
-            # Квест "Начало" включает весь путь до покупки первой курицы
+            # Словарь с правильными значениями из БД (с подчёркиваниями)
             quest_stages = {
-                TutorialStep.ISLANDACCESSGRANTED: "✅ Получен доступ на остров\n⏳ Наймите работника в Академии",
-                TutorialStep.TASKHIREWORKER: "✅ Доступ на остров\n⏳ Наймите работника за 30 рябаксов",
-                TutorialStep.TASKFIRSTWORK: "✅ Работник нанят\n⏳ Выполните первую работу в море",
-                TutorialStep.TASKCITIZENQUEST: "✅ Первая работа выполнена\n⏳ Посетите ратушу",
-                TutorialStep.TASKTRAINSPECIALIST: "✅ Зарегистрированы в ратуше\n⏳ Обучите специалиста",
-                TutorialStep.TASKBUYFARMLICENSE: "✅ Специалист обучен\n⏳ Купите фермерскую лицензию",
-                TutorialStep.TASKBUYLAND: "✅ Лицензия получена\n⏳ Купите участок земли",
-                TutorialStep.TASKBUILDCROPBED: "✅ Земля куплена\n⏳ Постройте грядку",
-                TutorialStep.TASKPLANTGRAIN: "✅ Грядка построена\n⏳ Посадите зерно",
-                TutorialStep.TASKBUILDHENHOUSE: "✅ Зерно посажено\n⏳ Постройте курятник",
-                TutorialStep.TASKBUYCHICKEN: "✅ Курятник построен\n⏳ Купите первую курицу в магазине"
+                "island_access_granted": "✅ Получен доступ на остров\n⏳ Наймите работника в Академии",
+                "task_hire_worker": "✅ Доступ на остров\n⏳ Наймите работника за 30 рябаксов",
+                "task_first_work": "✅ Работник нанят\n⏳ Выполните первую работу в море",
+                "task_citizen_quest": "✅ Первая работа выполнена\n⏳ Посетите ратушу",
+                "task_train_specialist": "✅ Зарегистрированы в ратуше\n⏳ Обучите специалиста",
+                "task_buy_farm_license": "✅ Специалист обучен\n⏳ Купите фермерскую лицензию",
+                "task_buy_land": "✅ Лицензия получена\n⏳ Купите участок земли",
+                "task_build_crop_bed": "✅ Земля куплена\n⏳ Постройте грядку",
+                "task_plant_grain": "✅ Грядка построена\n⏳ Посадите зерно",
+                "task_build_hen_house": "✅ Зерно посажено\n⏳ Постройте курятник",
+                "task_buy_chicken": "✅ Курятник построен\n⏳ Купите первую курицу в магазине"
             }
 
             progress_text = quest_stages.get(
-                tutorialstep,
+                tutorial_step_value,
                 "⏳ Продолжайте выполнять задания"
             )
 
@@ -157,14 +163,15 @@ async def citizen_tasks(callback: CallbackQuery):
 💰 Награда: 200 рябаксов, 100 опыта при полном выполнении"""
 
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔙 Назад", callback_data="backtocitizen")]
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_citizen")]
             ])
 
+            logger.info("Sending quest text to user")
             await callback.message.edit_text(quest_text, reply_markup=keyboard)
             await callback.answer()
             return
 
-        # Если туториал завершён, показываем другие задания или сообщение
+        # Если туториал завершён
         quest_text = """📝 ЗАДАНИЯ
 
 🎉 Поздравляем! Все базовые задания выполнены!
@@ -172,15 +179,16 @@ async def citizen_tasks(callback: CallbackQuery):
 Продолжайте развивать свою ферму и исследовать остров."""
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="backtocitizen")]
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_citizen")]
         ])
 
+        logger.info("Sending completed quest message")
         await callback.message.edit_text(quest_text, reply_markup=keyboard)
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Citizen tasks error: {e}")
-        await callback.answer("❌ Ошибка", show_alert=True)
+        logger.error(f"Citizen tasks error: {e}", exc_info=True)
+        await callback.answer("❌ Произошла ошибка. Проверьте логи.", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("citizen_"))

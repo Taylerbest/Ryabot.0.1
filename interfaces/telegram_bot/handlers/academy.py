@@ -11,9 +11,21 @@ from config.texts import *
 from services.quest_service import quest_service
 from services.blockchain_service import blockchain_service
 from adapters.database.supabase.client import get_supabase_client
+from adapters.database.supabase.repositories.user_repository import SupabaseUserRepository
+from core.use_cases.user.create_user import GetUserProfileUseCase, UpdateUserResourcesUseCase
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+
+async def get_use_cases():
+    """Получить use cases для работы с пользователями"""
+    client = await get_supabase_client()
+    user_repo = SupabaseUserRepository(client)
+    return {
+        'get_profile': GetUserProfileUseCase(user_repo),
+        'update_resources': UpdateUserResourcesUseCase(user_repo)
+    }
 
 
 def get_academy_keyboard():
@@ -62,8 +74,6 @@ async def show_academy_menu(callback: CallbackQuery):
     try:
         user_id = callback.from_user.id
 
-
-
         # Получаем статистику академии
         client = await get_supabase_client()
         specialists = await client.execute_query(
@@ -75,8 +85,7 @@ async def show_academy_menu(callback: CallbackQuery):
 
         specialist_count = len(specialists) if specialists else 0
 
-        academy_text = f"""
-🎓 *АКАДЕМИЯ ОСТРОВА*
+        academy_text = f"""🎓 *АКАДЕМИЯ ОСТРОВА*
 
 Центр обучения и найма специалистов.
 Здесь вы можете нанимать рабочих и обучать их профессиям.
@@ -86,16 +95,16 @@ async def show_academy_menu(callback: CallbackQuery):
 
 💡 *Совет:* Специалисты работают эффективнее обычных рабочих!
 
-👇 Выберите действие:
-        """.strip()
+👇 Выберите действие:"""
 
         await callback.message.edit_text(
             academy_text,
-            reply_markup=get_academy_keyboard()
+            reply_markup=get_academy_keyboard(),
+            parse_mode="Markdown"
         )
 
     except Exception as e:
-        logger.error(f"Ошибка академии: {e}")
+        logger.error(f"Ошибка академии: {e}", exc_info=True)
         await callback.answer("Ошибка загрузки академии", show_alert=True)
 
 
@@ -107,11 +116,8 @@ async def academy_hire(callback: CallbackQuery):
     try:
         user_id = callback.from_user.id
 
-
-
         # Получаем профиль пользователя
-        from interfaces.telegram_bot.handlers.start import get_user_use_cases
-        use_cases = await get_user_use_cases()
+        use_cases = await get_use_cases()
         profile = await use_cases['get_profile'].execute(user_id)
 
         # Считаем количество рабочих
@@ -127,8 +133,7 @@ async def academy_hire(callback: CallbackQuery):
         hire_cost = 30 + (worker_count * 10)
         can_hire = profile['ryabucks'] >= hire_cost
 
-        hire_text = f"""
-💼 *БИРЖА ТРУДА*
+        hire_text = f"""💼 *БИРЖА ТРУДА*
 
 Наймите рабочих для выполнения различных задач на острове.
 
@@ -136,18 +141,18 @@ async def academy_hire(callback: CallbackQuery):
 💰 *Стоимость найма:* {hire_cost} рябаксов
 💵 *Ваши средства:* {profile['ryabucks']} рябаксов
 
-{"✅ Вы можете нанять рабочего!" if can_hire else "❌ Недостаточно средств для найма"}
-        """.strip()
+{"✅ Вы можете нанять рабочего!" if can_hire else "❌ Недостаточно средств для найма"}"""
 
         await callback.message.edit_text(
             hire_text,
-            reply_markup=get_hire_keyboard(can_hire, worker_count)
+            reply_markup=get_hire_keyboard(can_hire, worker_count),
+            parse_mode="Markdown"
         )
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Ошибка биржи труда: {e}")
-        await callback.answer("Ошибка", show_alert=True)
+        logger.error(f"Ошибка биржи труда: {e}", exc_info=True)
+        await callback.answer("Ошибка загрузки биржи труда", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("hire_worker_"))
@@ -160,14 +165,8 @@ async def hire_worker(callback: CallbackQuery):
         # Извлекаем стоимость
         cost = int(callback.data.split("_")[-1])
 
-        # Проверяем доступность найма
-        if not await quest_service.is_quest_available(user_id, "hire_worker"):
-            await callback.answer("Это действие сейчас недоступно", show_alert=True)
-            return
-
         # Проверяем средства
-        from interfaces.telegram_bot.handlers.start import get_user_use_cases
-        use_cases = await get_user_use_cases()
+        use_cases = await get_use_cases()
         profile = await use_cases['get_profile'].execute(user_id)
 
         if profile['ryabucks'] < cost:
@@ -205,33 +204,35 @@ async def hire_worker(callback: CallbackQuery):
             significance=1
         )
 
-        # Завершаем задание
-        await quest_service.complete_quest(user_id, "hire_worker")
+        # Завершаем задание если оно активно
+        try:
+            await quest_service.complete_quest(user_id, "hire_worker")
+        except:
+            pass  # Игнорируем ошибку если квест не активен
 
         # Показываем результат
         await callback.message.edit_text(
-            f"""
-✅ *РАБОЧИЙ НАНЯТ!*
+            f"""✅ *РАБОЧИЙ НАНЯТ!*
 
-🎉 Поздравляем! Вы наняли своего первого рабочего!
+🎉 Поздравляем! Вы наняли рабочего!
 
 👷 *Имя:* Рабочий #{user_id % 1000}
 💰 *Потрачено:* {cost} рябаксов
 💪 *Статус:* Готов к работе
 
-🎯 *Следующий шаг:* Отправьте рабочего на первую работу!
-Идите в 💼 Рябота → 🌊 Море → "Разгрузить улов"
-            """.strip(),
+🎯 *Следующий шаг:* Отправьте рабочего на работу в раздел "Рябота\"""",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🎉 Отлично!", callback_data="back_to_academy")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
-        await callback.answer("✅ Рабочий нанят!", show_alert=True)
+        await callback.answer("✅ Рабочий нанят!", show_alert=False)
 
     except Exception as e:
-        logger.error(f"Ошибка найма рабочего: {e}")
-        await callback.answer("Ошибка найма", show_alert=True)
+        logger.error(f"Ошибка найма рабочего: {e}", exc_info=True)
+        await callback.answer("Ошибка найма рабочего", show_alert=True)
+
 
 
 @router.callback_query(F.data == "academy_train")
@@ -240,10 +241,8 @@ async def academy_train(callback: CallbackQuery):
     try:
         user_id = callback.from_user.id
 
-
         # Получаем профиль
-        from interfaces.telegram_bot.handlers.start import get_user_use_cases
-        use_cases = await get_user_use_cases()
+        use_cases = await get_use_cases()
         profile = await use_cases['get_profile'].execute(user_id)
 
         # Проверяем наличие рабочих
@@ -257,22 +256,20 @@ async def academy_train(callback: CallbackQuery):
 
         if not workers:
             await callback.message.edit_text(
-                f"""
-🎓 *КУРСЫ ЭКСПЕРТОВ*
+                """🎓 *КУРСЫ ЭКСПЕРТОВ*
 
 ❌ У вас нет рабочих для обучения!
 
-Сначала наймите рабочего в 💼 Бирже труда.
-                """.strip(),
+Сначала наймите рабочего в 💼 Бирже труда.""",
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_academy")]
-                ])
+                ]),
+                parse_mode="Markdown"
             )
             await callback.answer()
             return
 
-        train_text = f"""
-🎓 *КУРСЫ ЭКСПЕРТОВ*
+        train_text = f"""🎓 *КУРСЫ ЭКСПЕРТОВ*
 
 Обучите ваших рабочих профессиям для повышения эффективности.
 
@@ -282,18 +279,18 @@ async def academy_train(callback: CallbackQuery):
 💵 {profile['ryabucks']} рябаксов
 🧪 {profile['liquid_experience']} жидкого опыта
 
-📚 *Доступные курсы:*
-        """.strip()
+📚 *Доступные курсы:*"""
 
         await callback.message.edit_text(
             train_text,
-            reply_markup=get_training_keyboard()
+            reply_markup=get_training_keyboard(),
+            parse_mode="Markdown"
         )
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Ошибка курсов: {e}")
-        await callback.answer("Ошибка", show_alert=True)
+        logger.error(f"Ошибка курсов: {e}", exc_info=True)
+        await callback.answer("Ошибка загрузки курсов", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("train_"))
@@ -311,25 +308,39 @@ async def train_specialist(callback: CallbackQuery):
             return
 
         # Получаем профиль
-        from interfaces.telegram_bot.handlers.start import get_user_use_cases
-        use_cases = await get_user_use_cases()
+        use_cases = await get_use_cases()
         profile = await use_cases['get_profile'].execute(user_id)
 
         # Проверяем ресурсы
         if profile['liquid_experience'] < 25 or profile['ryabucks'] < 50:
             await callback.answer(
-                f"Недостаточно ресурсов! Нужно 25 жидкого опыта и 50 рябаксов",
+                "Недостаточно ресурсов! Нужно 25 жидкого опыта и 50 рябаксов",
                 show_alert=True
             )
             return
 
-        # Обновляем специалиста
+        # Получаем первого рабочего для обучения
         client = await get_supabase_client()
+        workers = await client.execute_query(
+            table="specialists",
+            operation="select",
+            columns=["id"],
+            filters={"user_id": user_id, "specialist_type": "worker"},
+            limit=1
+        )
+
+        if not workers or len(workers) == 0:
+            await callback.answer("У вас нет рабочих для обучения", show_alert=True)
+            return
+
+        worker_id = workers[0]['id']
+
+        # Обновляем специалиста
         await client.execute_query(
             table="specialists",
             operation="update",
             data={"specialist_type": specialty},
-            filters={"user_id": user_id, "specialist_type": "worker"}
+            filters={"id": worker_id}
         )
 
         # Списываем ресурсы
@@ -350,11 +361,10 @@ async def train_specialist(callback: CallbackQuery):
 
         # Показываем результат
         specialty_name = SPECIALTY_FARMER if specialty == "farmer" else SPECIALTY_BUILDER
-        abilities = SPECIALTY_ABILITIES[specialty]
+        abilities = SPECIALTY_ABILITIES.get(specialty, "Работа на острове")
 
         await callback.message.edit_text(
-            f"""
-✅ *СПЕЦИАЛИСТ ОБУЧЕН!*
+            f"""✅ *СПЕЦИАЛИСТ ОБУЧЕН!*
 
 🎓 Ваш рабочий успешно освоил профессию {specialty_name}!
 
@@ -362,18 +372,18 @@ async def train_specialist(callback: CallbackQuery):
 {abilities}
 
 🎯 *Следующий шаг:* Купите фермерскую лицензию в Ратуше!
-Идите в 🏘️ Город → 🏛️ Ратуша → Лицензии
-            """.strip(),
+Идите в 🏘️ Город → 🏛️ Ратуша → Лицензии""",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🎉 Отлично!", callback_data="back_to_academy")]
-            ])
+            ]),
+            parse_mode="Markdown"
         )
 
-        await callback.answer("🎓 Специалист обучен!", show_alert=True)
+        await callback.answer("🎓 Специалист обучен!", show_alert=False)
 
     except Exception as e:
-        logger.error(f"Ошибка обучения: {e}")
-        await callback.answer("Ошибка обучения", show_alert=True)
+        logger.error(f"Ошибка обучения: {e}", exc_info=True)
+        await callback.answer("Ошибка обучения специалиста", show_alert=True)
 
 
 @router.callback_query(F.data == "academy_class")
@@ -383,7 +393,8 @@ async def academy_class(callback: CallbackQuery):
         f"📚 *КЛАСС ОБУЧЕНИЯ*\n\n{SECTION_UNDER_DEVELOPMENT}",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=BTN_BACK, callback_data="back_to_academy")]
-        ])
+        ]),
+        parse_mode="Markdown"
     )
     await callback.answer()
 

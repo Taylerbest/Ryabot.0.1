@@ -4,11 +4,9 @@
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
-
-from adapters.database.supabase.client import get_supabase_client
-from core.domain.entities import TutorialStep, Quest, QuestStatus
+from core.domain.entities import TutorialStep, QuestStatus
 from config.texts import QUESTS
 
 logger = logging.getLogger(__name__)
