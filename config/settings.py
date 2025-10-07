@@ -70,7 +70,7 @@ class Settings:
     REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD")
     
     # ========== АДМИНИСТРАТОРЫ ==========
-    ADMIN_USER_IDS: List[int] = []
+    ADMIN_USER_IDS: 6471957469
     
     admin_ids_str = os.getenv("ADMIN_USER_IDS", "")
     if admin_ids_str:

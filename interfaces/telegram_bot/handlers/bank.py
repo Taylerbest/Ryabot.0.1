@@ -2,6 +2,7 @@
 Хендлер Рябанка - игровой банк с DEX механикой
 """
 import logging
+import decimal
 from decimal import Decimal
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -11,6 +12,8 @@ from config.texts import *
 from services.bank_service import bank_service
 from interfaces.telegram_bot.states import BankState
 from adapters.database.supabase.client import get_supabase_client
+from aiogram.types import LabeledPrice
+
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -42,8 +45,12 @@ def get_bank_keyboard() -> InlineKeyboardMarkup:
 async def show_bank_menu(callback: CallbackQuery):
     """Показать главное меню Рябанка"""
     try:
+        logger.info("🏦 ВХОД В БАНК - show_bank_menu вызван")
+
         # Получить состояние пулов
         pools = await bank_service.get_bank_pools()
+
+        logger.info(f"📊 Данные из БД: RBTC={pools['rbtc_pool']}, Рябаксы={pools['ryabucks_pool']}, Курс={pools['current_rate']:.2f}")
 
         bank_text = f"""〰️〰️ 🏦 ₽ЯБАНК ℹ️ 🔋14  〰️〰️
 
@@ -59,18 +66,23 @@ async def show_bank_menu(callback: CallbackQuery):
 
 💠 Банковский Пул  
 ├ Цена 1 [💠]: {pools['current_rate']:.2f} [💵]
-└ Total: {pools['rbtc_pool']:.0f} RBTC  
+├ [💠]: {pools['rbtc_pool']:.0f} RBTC  
+└ [💵]: {pools['ryabucks_pool']:.0f} Рябаксов
 
 ⚜️ Инвестировано: {pools['total_invested_golden_eggs']} золотых яиц"""
+
+        logger.info(f"📝 Отправляю текст в Telegram (длина: {len(bank_text)} символов)")
 
         await callback.message.edit_text(
             bank_text,
             reply_markup=get_bank_keyboard()
         )
+
+        logger.info("✅ Меню банка отправлено успешно")
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"Ошибка показа меню банка: {e}")
+        logger.error(f"❌ Ошибка показа меню банка: {e}")
         await callback.answer("Произошла ошибка", show_alert=True)
 
 
@@ -146,7 +158,6 @@ async def process_buy_rbtc_amount(message: Message, state: FSMContext):
         max_rbtc = data.get('max_rbtc', 0)
 
         # Очистка и валидация ввода
-        import decimal
         try:
             text = message.text.strip().replace(',', '.').replace(' ', '')
             if not text:
@@ -225,10 +236,16 @@ async def confirm_buy_rbtc(callback: CallbackQuery, state: FSMContext):
 
         success, message_text = await bank_service.buy_rbtc(user_id, amount)
 
-        if success:
-            await callback.message.edit_text(f"✅ {message_text}")
-        else:
-            await callback.message.edit_text(f"❌ {message_text}")
+        # Кнопка возврата в банк
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🏦 Вернуться в банк", callback_data="town_ryabank")]
+        ])
+
+        await callback.message.edit_text(
+            message_text,
+            parse_mode=None,
+            reply_markup=keyboard
+        )
 
         await state.clear()
         await callback.answer()
@@ -302,16 +319,14 @@ async def process_sell_rbtc_amount(message: Message, state: FSMContext):
         data = await state.get_data()
         user_rbtc = data.get('user_rbtc', 0)
 
+        # Очистка и валидация ввода
         try:
-            try:
-                text = message.text.strip().replace(',', '.').replace(' ', '')
-                if not text:
-                    await message.answer("❌ Введите сумму")
-                    return
-                amount = Decimal(text)
-            except (ValueError, TypeError, decimal.InvalidOperation):
-                await message.answer("❌ Введите корректную сумму (например: 10.5)")
+            text = message.text.strip().replace(',', '.').replace(' ', '')
+            if not text:
+                await message.answer("❌ Введите сумму")
                 return
+
+            amount = Decimal(text)
 
             if amount <= 0:
                 await message.answer("❌ Сумма должна быть больше 0")
@@ -321,7 +336,8 @@ async def process_sell_rbtc_amount(message: Message, state: FSMContext):
                 await message.answer(f"❌ У вас есть только: {user_rbtc:.4f} 💠 RBTC")
                 return
 
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, decimal.InvalidOperation) as e:
+            logger.error(f"Ошибка парсинга суммы продажи: {e}, текст: '{message.text}'")
             await message.answer("❌ Введите корректную сумму (например: 10.5)")
             return
 
@@ -377,10 +393,16 @@ async def confirm_sell_rbtc(callback: CallbackQuery, state: FSMContext):
 
         success, message_text = await bank_service.sell_rbtc(user_id, amount)
 
-        if success:
-            await callback.message.edit_text(f"✅ {message_text}")
-        else:
-            await callback.message.edit_text(f"❌ {message_text}")
+        # Кнопка возврата в банк
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🏦 Вернуться в банк", callback_data="town_ryabank")]
+        ])
+
+        await callback.message.edit_text(
+            message_text,
+            parse_mode=None,
+            reply_markup=keyboard
+        )
 
         await state.clear()
         await callback.answer()
@@ -396,30 +418,31 @@ async def confirm_sell_rbtc(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "bank_buy_ryabucks")
 async def buy_ryabucks_stars(callback: CallbackQuery):
-    """Покупка рябаксов за Telegram Stars"""
+    """Покупка рябаксов за Telegram Stars - МЕНЮ ВЫБОРА"""
     try:
         pools = await bank_service.get_bank_pools()
-        current_rate = pools['current_rate']
+        current_rate = float(pools['current_rate'])
 
-        from config.global_pools import STARS_PACKAGES, RBTC_EQUIVALENT
+        from config.global_pools import STARS_PACKAGES
 
-        # Рассчитать сколько рябаксов за базовый пакет
-        base_ryabucks = int(RBTC_EQUIVALENT * current_rate)
+        RBTC_EQUIV = 14.3
+
+        base_ryabucks = int(RBTC_EQUIV * current_rate)
 
         stars_text = f"""⭐ Покупка рябаксов за Telegram Stars
 
 📊 Текущий курс: 1 💠 = {current_rate:.2f} 💵
 
 За 100 ⭐ получите: {base_ryabucks:,} 💵 рябаксов
-(эквивалент {RBTC_EQUIVALENT} 💠 RBTC)
+(эквивалент {RBTC_EQUIV} 💠 RBTC)
 
 Выберите пакет:"""
 
         keyboard = []
-        for package in STARS_PACKAGES[:4]:  # Показываем первые 4 пакета
+        for package in STARS_PACKAGES[:4]:
             stars = package['stars']
             bonus = package['bonus']
-            ryabucks = int((stars / 100) * RBTC_EQUIVALENT * current_rate * (1 + bonus / 100))
+            ryabucks = int((stars / 100.0) * RBTC_EQUIV * current_rate * (1.0 + bonus / 100.0))
 
             bonus_text = f" +{bonus}%" if bonus > 0 else ""
             button_text = f"{stars} ⭐ → {ryabucks:,} 💵{bonus_text}"
@@ -440,6 +463,89 @@ async def buy_ryabucks_stars(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка показа покупки за звезды: {e}")
         await callback.answer("Произошла ошибка", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("buy_stars_"))
+async def process_buy_stars(callback: CallbackQuery):
+    """Обработка покупки рябаксов за Stars - СОЗДАНИЕ ИНВОЙСА"""
+    try:
+        stars = int(callback.data.split("_")[2])
+
+        logger.info(f"💫 Покупка за {stars} ⭐ от user {callback.from_user.id}")
+
+        pools = await bank_service.get_bank_pools()
+        current_rate = float(pools['current_rate'])
+
+        from config.global_pools import STARS_PACKAGES
+
+        RBTC_EQUIV = 14.3
+
+        bonus_percent = 0
+        for package in STARS_PACKAGES:
+            if package['stars'] == stars:
+                bonus_percent = package['bonus']
+                break
+
+        base_amount = int((stars / 100.0) * RBTC_EQUIV * current_rate)
+        bonus_amount = int(base_amount * bonus_percent / 100.0)
+        total_ryabucks = base_amount + bonus_amount
+
+        bonus_text = f" +{bonus_percent}% бонус!" if bonus_percent > 0 else ""
+
+        prices = [LabeledPrice(label=f"{stars} Stars", amount=stars)]
+
+        await callback.bot.send_invoice(
+            chat_id=callback.message.chat.id,
+            title="💵 Покупка рябаксов",
+            description=f"Получите {total_ryabucks:,} рябаксов{bonus_text}",
+            payload=f"stars_{stars}_{callback.from_user.id}",
+            provider_token="",
+            currency="XTR",
+            prices=prices
+        )
+
+        await callback.answer("Инвойс создан!")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка создания инвойса: {e}")
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+
+@router.pre_checkout_query()
+async def process_pre_checkout(pre_checkout_query):
+    """Подтверждение перед оплатой"""
+    try:
+        logger.info(f"✅ Pre-checkout от {pre_checkout_query.from_user.id}")
+        await pre_checkout_query.answer(ok=True)
+    except Exception as e:
+        logger.error(f"❌ Ошибка pre-checkout: {e}")
+        await pre_checkout_query.answer(ok=False, error_message="Ошибка")
+
+
+@router.message(F.successful_payment)
+async def process_successful_payment(message: Message):
+    """Успешный платёж"""
+    try:
+        payment = message.successful_payment
+        logger.info(f"💰 Платёж: {payment.total_amount} {payment.currency}")
+
+        parts = payment.invoice_payload.split("_")
+        stars = int(parts[1])
+        user_id = int(parts[2])
+
+        success, msg, amount = await bank_service.buy_ryabucks_with_stars(user_id, stars)
+
+        if success:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏦 Вернуться в банк", callback_data="town_ryabank")]
+            ])
+            await message.answer(f"✅ {msg}", parse_mode=None, reply_markup=keyboard)
+        else:
+            await message.answer(f"❌ {msg}", parse_mode=None)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка платежа: {e}")
+        await message.answer("Ошибка зачисления")
 
 
 # TODO: Реализовать обработчики для:
