@@ -6,7 +6,6 @@
 import asyncio
 import logging
 import sys
-import os
 import io
 from pathlib import Path
 
@@ -82,6 +81,10 @@ async def initialize_app():
         from config.game_stats import game_stats
         logger.info(f"✅ Game stats инициализированы (запуск: {game_stats.bot_start_time})")
 
+        # Инициализация bank service
+        from services.bank_service import bank_service
+        logger.info("✅ Bank service инициализирован")
+
         logger.info("🎉 Инициализация завершена успешно!")
 
     except Exception as e:
@@ -136,5 +139,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("⚠️ Программа прервана пользователем")
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка при запуске: {e}")  # <-- ИСПРАВЛЕНО: убрана лишняя скобка
+        logger.error(f"❌ Критическая ошибка при запуске: {e}")
         sys.exit(1)

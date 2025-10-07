@@ -30,3 +30,17 @@ class AcademyState(StatesGroup):
     LABOR_EXCHANGE = State()      # Биржа труда (найм рабочих)
     EXPERT_COURSES = State()      # Курсы экспертов (обучение специалистов)
     TRAINING_CLASS = State()      # Класс обучения
+
+# ═══ СОСТОЯНИЯ БАНКА (РЯБАНК) ═══
+class BankState(StatesGroup):
+    """Состояния для работы с банком"""
+    MAIN_MENU = State()
+    BUY_RBTC_AMOUNT = State()
+    BUY_RBTC_CONFIRM = State()
+    SELL_RBTC_AMOUNT = State()
+    SELL_RBTC_CONFIRM = State()
+    BUY_RYABUCKS_STARS = State()
+    INVEST_GOLDEN_EGG = State()
+    SEND_RBTC_USER = State()
+    SEND_RBTC_AMOUNT = State()
+    SEND_RBTC_CONFIRM = State()

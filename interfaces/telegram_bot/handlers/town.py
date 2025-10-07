@@ -65,6 +65,9 @@ async def show_town_menu(message: Message):
         logger.error(f"Ошибка меню города: {e}")
         await message.answer(ERROR_GENERAL)
 
+
+# === СПЕЦИАЛЬНЫЕ ОБРАБОТЧИКИ (ДО ОБЩЕГО) ===
+
 @router.callback_query(F.data == "town_academy")
 async def town_academy(callback: CallbackQuery):
     """Переход в академию"""
@@ -75,18 +78,27 @@ async def town_academy(callback: CallbackQuery):
         logger.error(f"❌ Ошибка академии: {e}")
         await callback.answer("Ошибка", show_alert=True)
 
-# === ОБРАБОТЧИКИ ЗДАНИЙ ГОРОДА ===
+
+@router.callback_query(F.data == "town_ryabank")
+async def town_ryabank(callback: CallbackQuery):
+    """Переход в Рябанк - обрабатывается в bank.py"""
+    # Этот хендлер НЕ нужен, т.к. bank.py уже обрабатывает "town_ryabank"
+    # Но если bank.py не перехватывает, оставляем заглушку
+    logger.info(f"town_ryabank вызван из town.py (должен обрабатываться bank.py)")
+    await callback.answer("Загрузка банка...", show_alert=False)
+
+
+# === ОБЩИЙ ОБРАБОТЧИК ЗДАНИЙ ГОРОДА ===
 
 @router.callback_query(F.data.startswith("town_"))
 async def handle_town_building(callback: CallbackQuery):
-    """Обработка зданий города"""
+    """Обработка остальных зданий города"""
     try:
         building = callback.data.split("_")[1]
 
         building_names = {
             "hall": "🏛 РАТУША",
             "market": "🛒 РЫНОК",
-            "ryabank": "🏦 РЯБАНК",
             "shop": "🏪 МАГАЗИН",
             "pawnshop": "💍 ЛОМБАРД",
             "tavern": "🍻 ТАВЕРНА",
@@ -144,5 +156,3 @@ async def back_to_town(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка возврата в город: {e}")
         await callback.answer("Ошибка", show_alert=True)
-
-
