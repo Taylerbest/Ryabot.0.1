@@ -181,6 +181,7 @@ class TutorialService:
         hints = {
             TutorialStep.NOT_STARTED: "Создайте персонажа для начала приключения!",
             TutorialStep.CHARACTER_CREATION: "Выберите одного из 10 персонажей.",
+            TutorialStep.NICKNAME_INPUT: "Придумайте и введите ваш никнейм (3–20 символов).",
             TutorialStep.SHIPWRECK: "Переживите кораблекрушение и найдите золотой осколок.",
             TutorialStep.TAVERN_VISIT: "Посетите таверну у моря и узнайте про осколок.",
             TutorialStep.PAWN_SHOP: "Продайте золотой осколок в ломбарде за 500 рябаксов.",

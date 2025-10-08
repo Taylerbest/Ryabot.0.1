@@ -30,13 +30,15 @@ from utils.base62_helper import generate_referral_link
 
 
 async def get_friends_data(user_id: int) -> dict:
-    """Получить данные о друзьях и рефералах"""
-    # TODO: Получить реальные данные из базы
-
-    # Получаем player_id из базы данных
+    """Получить данные о друзьях и рефералах (3 уровня)"""
     from adapters.database.supabase.client import get_supabase_client
+    from utils.base62_helper import generate_referral_link
+    from config.settings import settings
+
     client = await get_supabase_client()
-    user_data = await client.execute_query(
+
+    # 1. Получаем player_id для реф-ссылки
+    user_data_raw = await client.execute_query(
         table="users",
         operation="select",
         columns=["player_id"],
@@ -44,10 +46,55 @@ async def get_friends_data(user_id: int) -> dict:
         single=True
     )
 
-    player_id = user_data.get("player_id", user_id) if user_data else user_id
+    if isinstance(user_data_raw, list):
+        user_data = user_data_raw[0] if user_data_raw else None
+    else:
+        user_data = user_data_raw
 
-    # Генерируем реферальную ссылку с Base62
+    player_id = user_data.get("player_id") if user_data else user_id
     referral_link = generate_referral_link(player_id, settings.BOT_USERNAME)
+
+    # 2. УРОВЕНЬ 1: Друзья (прямые рефералы)
+    level1_raw = await client.execute_query(
+        table="referrals",
+        operation="select",
+        columns=["referred_user_id"],
+        filters={"referrer_user_id": user_id, "is_active": True}
+    )
+
+    level1 = level1_raw if isinstance(level1_raw, list) else ([level1_raw] if level1_raw else [])
+    friends_ids = [r["referred_user_id"] for r in level1]
+    friends_count = len(friends_ids)
+
+    # 3. УРОВЕНЬ 2: Знакомые (рефералы друзей)
+    acquaintances_count = 0
+    acquaintances_ids = []
+
+    if friends_ids:
+        level2_raw = await client.execute_query(
+            table="referrals",
+            operation="select",
+            columns=["referred_user_id"],
+            filters={"referrer_user_id": {"in": friends_ids}, "is_active": True}
+        )
+
+        level2 = level2_raw if isinstance(level2_raw, list) else ([level2_raw] if level2_raw else [])
+        acquaintances_ids = [r["referred_user_id"] for r in level2]
+        acquaintances_count = len(acquaintances_ids)
+
+    # 4. УРОВЕНЬ 3: Окружение (рефералы знакомых)
+    network_count = 0
+
+    if acquaintances_ids:
+        level3_raw = await client.execute_query(
+            table="referrals",
+            operation="select",
+            columns=["referred_user_id"],
+            filters={"referrer_user_id": {"in": acquaintances_ids}, "is_active": True}
+        )
+
+        level3 = level3_raw if isinstance(level3_raw, list) else ([level3_raw] if level3_raw else [])
+        network_count = len(level3)
 
     return {
         "user_id": user_id,
@@ -58,9 +105,9 @@ async def get_friends_data(user_id: int) -> dict:
         "total_rbtc": 0,
         "total_ryabucks": 0,
         "total_tickets": 0,
-        "friends_count": 0,
-        "acquaintances_count": 0,
-        "network_count": 0,
+        "friends_count": friends_count,  # Уровень 1
+        "acquaintances_count": acquaintances_count,  # Уровень 2
+        "network_count": network_count,  # Уровень 3
         "partner_pool": 4_200_000,
         "partner_rating": 0
     }

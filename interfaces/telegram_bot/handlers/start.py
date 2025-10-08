@@ -11,7 +11,11 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from config.texts import (
     LANGUAGE_SELECTION_TITLE,
+    LANGUAGE_SELECTED_RU,
+    LANGUAGE_SELECTED_EN,
+    CHARACTER_CREATION_TITLE,
     ERROR_GENERAL,
+    ERROR_ENTER_ISLAND,
     BTN_SETTINGS,
     BTN_ENTER_ISLAND,
     BTN_TOWN,
@@ -22,16 +26,21 @@ from config.texts import (
     BTN_LEADERBOARD,
     BTN_OTHER,
     BTN_SUPPORT,
-    BTN_WORK
+    BTN_WORK,
+    BTN_LANGUAGE_RU,
+    BTN_LANGUAGE_EN,
+    ISLAND_MAIN_MENU,
+    WELCOME_TO_ISLAND,
+    SECTION_UNDER_DEVELOPMENT,
 )
 from config.settings import settings
+from config.game_stats import game_stats
 from core.domain.entities import TutorialStep
 from adapters.database.supabase.client import get_supabase_client
-from interfaces.telegram_bot.keyboards.main_menu import get_start_menu
+from interfaces.telegram_bot.keyboards.main_menu import get_start_menu, get_island_menu
 from interfaces.telegram_bot.keyboards.inline_menus import get_language_keyboard, get_settings_keyboard
 from interfaces.telegram_bot.states import TutorialState
 from services.tutorial_service import tutorial_service
-from config.game_stats import game_stats
 from utils.base62_helper import decode_player_id
 
 
@@ -366,13 +375,19 @@ async def cmd_start(message: Message, state: FSMContext):
         client = await get_supabase_client()
 
         # Проверяем пользователя
-        user_data = await client.execute_query(
+        user_data_raw = await client.execute_query(
             table="users",
             operation="select",
             columns=["user_id", "tutorial_step", "has_island_access", "has_employer_license", "referred_by"],
             filters={"user_id": user_id},
             single=True
         )
+
+        # Приводим результат к словарю
+        if isinstance(user_data_raw, list):
+            user_data = user_data_raw[0] if user_data_raw else None
+        else:
+            user_data = user_data_raw
 
         is_new_user = user_data is None
 
@@ -387,14 +402,17 @@ async def cmd_start(message: Message, state: FSMContext):
             if referrer_player_id > 0:
                 logger.info(f"Пользователь {user_id} перешел по реф-ссылке от player_id {referrer_player_id}")
 
-                # Получаем user_id реферера по player_id
-                referrer_data = await client.execute_query(
+                referrer_data_raw = await client.execute_query(
                     table="users",
                     operation="select",
                     columns=["user_id"],
                     filters={"player_id": referrer_player_id},
                     single=True
                 )
+                if isinstance(referrer_data_raw, list):
+                    referrer_data = referrer_data_raw[0] if referrer_data_raw else None
+                else:
+                    referrer_data = referrer_data_raw
 
                 if referrer_data:
                     referrer_user_id = referrer_data["user_id"]
@@ -409,54 +427,33 @@ async def cmd_start(message: Message, state: FSMContext):
                 "username": username,
                 "ryabucks": 100,
                 "golden_shards": 1,
-                "tutorial_step": "not_started"
+                "tutorial_step": TutorialStep.NOT_STARTED.value
             }
-
-            # Добавляем реферера, если есть
             if referrer_user_id:
                 insert_data["referred_by"] = referrer_user_id
 
-            await client.execute_query(
-                table="users",
-                operation="insert",
-                data=insert_data
-            )
+            await client.execute_query(table="users", operation="insert", data=insert_data)
 
-            # Если был реферер - создаем реферальную запись
             if referrer_user_id:
-                try:
-                    await client.execute_query(
-                        table="referrals",
-                        operation="insert",
-                        data={
-                            "referrer_user_id": referrer_user_id,
-                            "referred_user_id": user_id,
-                            "referral_type": "friend",
-                            "created_at": datetime.now().isoformat(),
-                            "is_active": True
-                        }
-                    )
-                    logger.info(f"✅ Реферальная связь создана: {referrer_user_id} -> {user_id}")
+                await client.execute_query(
+                    table="referrals",
+                    operation="insert",
+                    data={
+                        "referrer_user_id": referrer_user_id,
+                        "referred_user_id": user_id,
+                        "referral_type": "friend",
+                        "created_at": datetime.now().isoformat(),
+                        "is_active": True
+                    }
+                )
+            user_data = {"tutorial_step": TutorialStep.NOT_STARTED.value, "has_island_access": False}
 
-                    # Опционально: уведомить реферера
-                    try:
-                        from aiogram import Bot
-                        from config.settings import settings
-                        bot = Bot(token=settings.BOT_TOKEN)
-                        await bot.send_message(
-                            referrer_user_id,
-                            f"🎉 По вашей реферальной ссылке зарегистрировался новый игрок!\n"
-                            f"Следите за его прогрессом в разделе «Друзья»"
-                        )
-                    except Exception as notify_error:
-                        logger.warning(f"Не удалось уведомить реферера: {notify_error}")
-
-                except Exception as ref_error:
-                    logger.error(f"Ошибка создания реферальной записи: {ref_error}")
-
-            user_data = {"tutorial_step": "not_started", "has_island_access": False}
-
-        tutorial_step = TutorialStep(user_data['tutorial_step'])
+        # Получаем шаг туториала
+        tutorial_value = user_data.get("tutorial_step") if user_data else TutorialStep.NOT_STARTED.value
+        try:
+            tutorial_step = TutorialStep(tutorial_value)
+        except ValueError:
+            tutorial_step = TutorialStep.NOT_STARTED
 
         # Если туториал не начат - выбор языка
         if tutorial_step == TutorialStep.NOT_STARTED:
@@ -467,7 +464,7 @@ async def cmd_start(message: Message, state: FSMContext):
             return
 
         # Если туториал в процессе (до доступа к острову)
-        if tutorial_step not in [TutorialStep.COMPLETED, TutorialStep.ISLAND_ACCESS_GRANTED]:
+        if tutorial_step not in (TutorialStep.COMPLETED, TutorialStep.ISLAND_ACCESS_GRANTED):
             hint = tutorial_service.get_next_step_hint(tutorial_step)
             await message.answer(f"🎯 Туториал в процессе\n\n{hint}")
             return
@@ -484,6 +481,7 @@ async def cmd_start(message: Message, state: FSMContext):
     except Exception as e:
         logger.error(f"❌ Ошибка /start: {e}", exc_info=True)
         await message.answer(ERROR_GENERAL)
+
 
 
 # === ВЫБОР ЯЗЫКА ===
