@@ -6,17 +6,25 @@
 import logging
 from datetime import datetime
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from core.domain.entities import TutorialStep, Language
-from config.texts import *
-from config.game_stats import game_stats
-from services.tutorial_service import tutorial_service
-from services.quest_service import quest_service
+from config.texts import (
+    LANGUAGE_SELECTION_TITLE,
+    ERROR_GENERAL,
+    BTN_SETTINGS
+)
+from config.settings import settings
+from core.domain.entities import TutorialStep
 from adapters.database.supabase.client import get_supabase_client
-from interfaces.telegram_bot.states import TutorialState
+from interfaces.telegram_bot.keyboards.mainmenu import get_start_menu
+from interfaces.telegram_bot.keyboards.inlinemenus import (
+    get_language_keyboard,
+    get_settings_keyboard  # ← Добавьте этот импорт
+)
+from services.tutorialservice import tutorial_service
+from utils.base62_helper import decode_player_id
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -352,24 +360,91 @@ async def cmd_start(message: Message, state: FSMContext):
         user_data = await client.execute_query(
             table="users",
             operation="select",
-            columns=["user_id", "tutorial_step", "has_island_access", "has_employer_license"],
+            columns=["user_id", "tutorial_step", "has_island_access", "has_employer_license", "referred_by"],
             filters={"user_id": user_id},
             single=True
         )
 
+        is_new_user = user_data is None
+
+        # Обработка реферального кода (ТОЛЬКО для новых пользователей)
+        referrer_user_id = None
+        args = message.text.split()
+
+        if is_new_user and len(args) > 1 and args[1].startswith("ref"):
+            ref_code = args[1][3:]  # Убираем префикс "ref"
+            referrer_player_id = decode_player_id(ref_code)
+
+            if referrer_player_id > 0:
+                logger.info(f"Пользователь {user_id} перешел по реф-ссылке от player_id {referrer_player_id}")
+
+                # Получаем user_id реферера по player_id
+                referrer_data = await client.execute_query(
+                    table="users",
+                    operation="select",
+                    columns=["user_id"],
+                    filters={"player_id": referrer_player_id},
+                    single=True
+                )
+
+                if referrer_data:
+                    referrer_user_id = referrer_data["user_id"]
+                    logger.info(f"Найден реферер: user_id {referrer_user_id}")
+                else:
+                    logger.warning(f"Реферер с player_id {referrer_player_id} не найден")
+
         # Если пользователя нет - создаем
-        if not user_data:
+        if is_new_user:
+            insert_data = {
+                "user_id": user_id,
+                "username": username,
+                "ryabucks": 100,
+                "golden_shards": 1,
+                "tutorial_step": "not_started"
+            }
+
+            # Добавляем реферера, если есть
+            if referrer_user_id:
+                insert_data["referred_by"] = referrer_user_id
+
             await client.execute_query(
                 table="users",
                 operation="insert",
-                data={
-                    "user_id": user_id,
-                    "username": username,
-                    "ryabucks": 100,
-                    "golden_shards": 1,
-                    "tutorial_step": "not_started"
-                }
+                data=insert_data
             )
+
+            # Если был реферер - создаем реферальную запись
+            if referrer_user_id:
+                try:
+                    await client.execute_query(
+                        table="referrals",
+                        operation="insert",
+                        data={
+                            "referrer_user_id": referrer_user_id,
+                            "referred_user_id": user_id,
+                            "referral_type": "friend",
+                            "created_at": datetime.now().isoformat(),
+                            "is_active": True
+                        }
+                    )
+                    logger.info(f"✅ Реферальная связь создана: {referrer_user_id} -> {user_id}")
+
+                    # Опционально: уведомить реферера
+                    try:
+                        from aiogram import Bot
+                        from config.settings import settings
+                        bot = Bot(token=settings.BOT_TOKEN)
+                        await bot.send_message(
+                            referrer_user_id,
+                            f"🎉 По вашей реферальной ссылке зарегистрировался новый игрок!\n"
+                            f"Следите за его прогрессом в разделе «Друзья»"
+                        )
+                    except Exception as notify_error:
+                        logger.warning(f"Не удалось уведомить реферера: {notify_error}")
+
+                except Exception as ref_error:
+                    logger.error(f"Ошибка создания реферальной записи: {ref_error}")
+
             user_data = {"tutorial_step": "not_started", "has_island_access": False}
 
         tutorial_step = TutorialStep(user_data['tutorial_step'])
@@ -618,9 +693,54 @@ async def other_menu(message: Message):
 # === СТАРЫЕ КНОПКИ ДЛЯ СОВМЕСТИМОСТИ ===
 
 @router.message(F.text == BTN_SETTINGS)
-async def settings_menu(message: Message):
-    """Настройки"""
-    await message.answer(f"⚙️ *НАСТРОЙКИ*\n\n{SECTION_UNDER_DEVELOPMENT}")
+async def settings_menu_message(message: Message):
+    """Обработчик кнопки 'Настройки'"""
+    try:
+        user_id = message.from_user.id
+        client = await get_supabase_client()
+
+        # Получаем данные пользователя с обработкой отсутствующих полей
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["display_name", "username", "language", "character_preset", "tutorial_completed"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        if not user_data:
+            await message.answer("❌ Пользователь не найден. Используйте /start")
+            return
+
+        # Безопасное получение данных с fallback значениями
+        display_name = user_data.get("display_name") or user_data.get("username") or f"Игрок {user_id}"
+        language = user_data.get("language", "ru")
+        character = user_data.get("character_preset", 1)
+        tutorial_completed = user_data.get("tutorial_completed", False)
+
+        # Проверка завершения туториала
+        if not tutorial_completed:
+            await message.answer(
+                "⚠️ Настройки станут доступны после завершения туториала.\n"
+                "Продолжите знакомство с островом!"
+            )
+            return
+
+        settings_text = (
+            f"⚙️ Настройки\n\n"
+            f"👤 Имя: {display_name}\n"
+            f"🌐 Язык: {'Русский' if language == 'ru' else 'English'}\n"
+            f"🎭 Персонаж: {character}\n"
+        )
+
+        await message.answer(settings_text, reply_markup=get_settings_keyboard())
+
+    except Exception as e:
+        logger.error(f"Error showing settings for user {message.from_user.id}: {e}", exc_info=True)
+        await message.answer(
+            "❌ Произошла ошибка при загрузке настроек.\n"
+            "Попробуйте позже или используйте /start"
+        )
 
 
 @router.message(F.text == BTN_SUPPORT)

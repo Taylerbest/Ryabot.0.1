@@ -321,12 +321,12 @@ class SupabaseUserRepository(UserRepository):
         except Exception as e:
             logger.error(f"Ошибка обновления времени активности для пользователя {user_id}: {e}")
             return False
-    
+
     async def get_active_user_ids(self, days: int = 30, limit: Optional[int] = None) -> List[int]:
         """Получить ID активных пользователей"""
         try:
             cutoff_date = datetime.now() - timedelta(days=days)
-            
+
             result = await self.client.execute_query(
                 table="users",
                 operation="select",
@@ -334,43 +334,47 @@ class SupabaseUserRepository(UserRepository):
                 filters={"last_active": {"gte": cutoff_date.isoformat()}},
                 limit=limit
             )
-            
+
             return [row['user_id'] for row in result]
-            
+
         except Exception as e:
             logger.error(f"Ошибка получения активных пользователей: {e}")
             return []
 
 
-async def update_display_name(self, user_id: int, display_name: str) -> bool:
-    """Обновить игровое имя пользователя"""
-    try:
-        result = await self.client.execute_query(
-            table="users",
-            operation="update",
-            data={
-                "display_name": display_name,
-                "last_active": datetime.now().isoformat()
-            },
-            filters={"user_id": user_id}
-        )
-        logger.info(f"Обновлено имя для пользователя {user_id}: {display_name}")
-        return bool(result)
-    except Exception as e:
-        logger.error(f"Ошибка обновления имени для {user_id}: {e}")
-        return False
+    async def update_display_name(self, user_id: int, display_name: str) -> bool:
+        """Обновить игровое имя пользователя"""
+        try:
+            result = await self.client.execute_query(
+                table="users",
+                operation="update",
+                data={
+                    "display_name": display_name,
+                    "last_active": datetime.now().isoformat()
+                },
+                filters={"user_id": user_id}
+            )
+            return bool(result)
+        except Exception as e:
+            logger.error(f"Ошибка обновления имени для {user_id}: {e}", exc_info=True)
+            return False
 
-async def check_display_name_exists(self, display_name: str) -> bool:
-    """Проверить существование игрового имени"""
-    try:
-        result = await self.client.execute_query(
-            table="users",
-            operation="select",
-            columns=["user_id"],
-            filters={"display_name": display_name},
-            single=True
-        )
-        return result is not None
-    except Exception as e:
-        logger.error(f"Ошибка проверки имени {display_name}: {e}")
-        return False
+    async def check_display_name_exists(self, display_name: str) -> bool:
+        """Проверить существование игрового имени"""
+        try:
+            result = await self.client.execute_query(
+                table="users",
+                operation="select",
+                columns=["user_id"],
+                filters={"display_name": display_name},
+                single=False  # Получаем список, а не single
+            )
+            # Если в результате есть хотя бы одна запись - имя занято
+            exists = bool(result) and len(result) > 0
+            logger.info(f"Проверка имени '{display_name}': exists={exists}, result={result}")
+            return exists
+        except Exception as e:
+            logger.error(f"Ошибка проверки имени {display_name}: {e}", exc_info=True)
+            return False
+
+

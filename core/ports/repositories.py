@@ -16,13 +16,14 @@ class UserRepository(ABC):
     """Репозиторий пользователей"""
 
     @abstractmethod
+    @abstractmethod
     async def get_by_id(self, user_id: int) -> Optional[User]:
         """Получить пользователя по ID"""
         pass
 
     @abstractmethod
     async def create(self, user: User) -> User:
-        """Создать пользователя"""
+        """Создать нового пользователя"""
         pass
 
     @abstractmethod

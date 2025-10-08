@@ -311,7 +311,7 @@ async def skip_display_name(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Ошибка", show_alert=True)
 
 
-@router.message(TutorialStates.waiting_for_display_name)
+@router.message(TutorialState.WAITING_FOR_DISPLAY_NAME)
 async def process_display_name_in_tutorial(message: Message, state: FSMContext):
     """Обработка ввода игрового имени"""
     user_id = message.from_user.id

@@ -10,6 +10,7 @@ from aiogram.types import LinkPreviewOptions
 from config.texts import *
 from config.settings import settings
 
+
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,28 @@ def get_friends_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-async def get_friends_data(user_id: int) -> dict:
-    """Получить данные реферальной системы"""
-    # TODO: Получать реальные данные из БД
+from utils.base62_helper import generate_referral_link
 
-    referral_link = f"https://t.me/{settings.BOT_USERNAME}?start=ref{user_id}"
+
+async def get_friends_data(user_id: int) -> dict:
+    """Получить данные о друзьях и рефералах"""
+    # TODO: Получить реальные данные из базы
+
+    # Получаем player_id из базы данных
+    from adapters.database.supabase.client import get_supabase_client
+    client = await get_supabase_client()
+    user_data = await client.execute_query(
+        table="users",
+        operation="select",
+        columns=["player_id"],
+        filters={"user_id": user_id},
+        single=True
+    )
+
+    player_id = user_data.get("player_id", user_id) if user_data else user_id
+
+    # Генерируем реферальную ссылку с Base62
+    referral_link = generate_referral_link(player_id, settings.BOT_USERNAME)
 
     return {
         "user_id": user_id,
@@ -43,7 +61,7 @@ async def get_friends_data(user_id: int) -> dict:
         "friends_count": 0,
         "acquaintances_count": 0,
         "network_count": 0,
-        "partner_pool": 4200000,
+        "partner_pool": 4_200_000,
         "partner_rating": 0
     }
 
