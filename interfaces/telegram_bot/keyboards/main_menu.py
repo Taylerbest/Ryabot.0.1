@@ -5,91 +5,47 @@
 
 import logging
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from config.texts import t()
-
+from config.texts import (
+    BTN_FARM,
+    BTN_TOWN,
+    BTN_CITIZEN,
+    BTN_WORK,
+    BTN_INVENTORY,
+    BTN_FRIENDS,
+    BTN_LEADERBOARD,
+    BTN_OTHER,
+    BTN_SETTINGS,
+    BTN_SUPPORT,
+    BTN_ENTER_ISLAND
+)
 
 logger = logging.getLogger(__name__)
 
+def get_start_menu() -> ReplyKeyboardMarkup:
+    """Стартовое меню до входа на остров"""
+    keyboard = [
+        [KeyboardButton(text=BTN_ENTER_ISLAND)],
+        [KeyboardButton(text=BTN_SETTINGS), KeyboardButton(text=BTN_SUPPORT)]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=False
+    )
 
-def get_start_menu(lang: str = "ru") -> ReplyKeyboardMarkup:
-    """
-    Стартовое меню (вне острова) с Reply кнопками
-    """
-    try:
-        keyboard = [
-            [KeyboardButton(text=t("btn_enter_island", lang))],
-            [
-                KeyboardButton(text=t("btn_settings", lang)),
-                KeyboardButton(text=t("btn_support", lang))
-            ]
-        ]
-
-        return ReplyKeyboardMarkup(
-            keyboard=keyboard,
-            resize_keyboard=True,
-            one_time_keyboard=False,
-            input_field_placeholder=t("menu_placeholder", lang),
-            selective=False
-        )
-    except Exception as e:
-        logger.error(f"Error creating start menu: {e}")
-        # Fallback клавиатура
-        return ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="🏝 Войти на остров")],
-                [KeyboardButton(text="⚙️ Настройки"), KeyboardButton(text="🆘 Поддержка")]
-            ],
-            resize_keyboard=True
-        )
-
-
-def get_island_menu(lang: str = "ru") -> ReplyKeyboardMarkup:
-    """
-    Меню острова (внутри острова) с Reply кнопками
-    """
-    try:
-        keyboard = [
-            [
-                KeyboardButton(text=t("btn_farm", lang)),
-                KeyboardButton(text=t("btn_town", lang))
-            ],
-            [
-                KeyboardButton(text=t("btn_citizen", lang)),
-                KeyboardButton(text=t("btn_work", lang))
-            ],
-            [
-                KeyboardButton(text=t("btn_inventory", lang)),
-                KeyboardButton(text=t("btn_friends", lang))
-            ],
-            [
-                KeyboardButton(text=t("btn_leaderboard", lang)),
-                KeyboardButton(text=t("btn_other", lang))
-            ],
-            [
-                KeyboardButton(text=t("btn_leave_island", lang))
-            ]
-        ]
-
-        return ReplyKeyboardMarkup(
-            keyboard=keyboard,
-            resize_keyboard=True,
-            one_time_keyboard=False,
-            input_field_placeholder=t("menu_placeholder", lang),
-            selective=False
-        )
-    except Exception as e:
-        logger.error(f"Error creating island menu: {e}")
-        # Fallback клавиатура
-        return ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="🐔 Ферма"), KeyboardButton(text="🏘️ Город")],
-                [KeyboardButton(text="👤 Житель"), KeyboardButton(text="💼 Работы")],
-                [KeyboardButton(text="🎒 Инвентарь"), KeyboardButton(text="👥 Друзья")],
-                [KeyboardButton(text="🏆 Рейтинг"), KeyboardButton(text="📋 Ещё")],
-                [KeyboardButton(text="🚪 Покинуть остров")]
-            ],
-            resize_keyboard=True
-        )
+def get_island_menu() -> ReplyKeyboardMarkup:
+    """Основное меню острова"""
+    keyboard = [
+        [KeyboardButton(text=BTN_FARM), KeyboardButton(text=BTN_TOWN)],
+        [KeyboardButton(text=BTN_CITIZEN), KeyboardButton(text=BTN_WORK)],
+        [KeyboardButton(text=BTN_INVENTORY), KeyboardButton(text=BTN_FRIENDS)],
+        [KeyboardButton(text=BTN_LEADERBOARD), KeyboardButton(text=BTN_OTHER)]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        is_persistent=True
+    )
 
 
 def get_language_keyboard() -> InlineKeyboardMarkup:

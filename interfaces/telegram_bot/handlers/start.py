@@ -6,25 +6,34 @@
 import logging
 from datetime import datetime
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-
 from config.texts import (
     LANGUAGE_SELECTION_TITLE,
     ERROR_GENERAL,
-    BTN_SETTINGS
+    BTN_SETTINGS,
+    BTN_ENTER_ISLAND,
+    BTN_TOWN,
+    BTN_CITIZEN,
+    BTN_FARM,
+    BTN_INVENTORY,
+    BTN_FRIENDS,
+    BTN_LEADERBOARD,
+    BTN_OTHER,
+    BTN_SUPPORT,
+    BTN_WORK
 )
 from config.settings import settings
 from core.domain.entities import TutorialStep
 from adapters.database.supabase.client import get_supabase_client
 from interfaces.telegram_bot.keyboards.main_menu import get_start_menu
-from interfaces.telegram_bot.keyboards.inline_menus import (
-    get_language_keyboard,
-    get_settings_keyboard  # ← Добавьте этот импорт
-)
+from interfaces.telegram_bot.keyboards.inline_menus import get_language_keyboard, get_settings_keyboard
+from interfaces.telegram_bot.states import TutorialState
 from services.tutorial_service import tutorial_service
+from config.game_stats import game_stats
 from utils.base62_helper import decode_player_id
+
 
 router = Router()
 logger = logging.getLogger(__name__)
