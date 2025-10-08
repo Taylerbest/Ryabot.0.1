@@ -143,6 +143,31 @@ BTN_HIRE_WORKER = "👷 Нанять рабочего"
 SPECIALTY_FARMER = "👨‍🌾 Фермер"
 SPECIALTY_BUILDER = "🏗️ Строитель"
 
+# Кнопки для настроек
+BTN_CHANGE_LANGUAGE = "🌍 Изменить язык"
+BTN_NOTIFICATIONS = "🔔 Уведомления"
+BTN_CHANGE_CHARACTER = "🎭 Сменить персонажа"
+
+# Кнопки для профиля
+BTN_DETAILED_STATS = "📊 Подробная статистика"
+BTN_ACHIEVEMENTS = "🏆 Достижения"
+BTN_PROFILE = "👤 Профиль"
+
+# Кнопки для прочего меню
+BTN_HELP = "❓ Помощь"
+BTN_PROMO = "🎁 Промо"
+
+# Кнопки для квантового пропуска
+BTN_BUY_QPASS = "💳 Купить Q-Pass"
+BTN_QPASS_INFO = "ℹ️ Информация"
+
+# Кнопки для академии
+BTN_TRAIN_FARMER = "👨‍🌾 Обучить фермера"
+BTN_TRAIN_BUILDER = "🏗️ Обучить строителя"
+BTN_TRAIN_FISHERMAN = "🎣 Обучить рыбака"
+BTN_TRAIN_FORESTER = "🧑‍🚒 Обучить лесника"
+
+
 SPECIALTY_ABILITIES = {
     "farmer": "• Работать на фермах\n• Ухаживать за животными\n• Выращивать растения\n• +25% к доходу с животноводства",
     "builder": "• Строить здания\n• Ремонтировать постройки\n• Работать на стройке\n• +25% к скорости строительства"

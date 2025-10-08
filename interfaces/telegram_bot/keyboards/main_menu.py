@@ -5,7 +5,8 @@
 
 import logging
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from ..localization.texts import t
+from config.texts import t()
+
 
 logger = logging.getLogger(__name__)
 

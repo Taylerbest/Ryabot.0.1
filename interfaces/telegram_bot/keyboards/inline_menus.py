@@ -4,39 +4,33 @@ Inline клавиатуры с локализацией
 """
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from ..localization.texts import t
+from config.texts import (
+    BTN_CHANGE_LANGUAGE,
+    BTN_NOTIFICATIONS,
+    BTN_CHANGE_CHARACTER,
+)
 
 
-def get_settings_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Меню настроек"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text=t('btn_change_language', lang),
-                callback_data="change_language"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=t('btn_notifications', lang),
-                callback_data="notifications"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=t('btn_change_character', lang),
-                callback_data="change_character"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=t('btn_back', lang),
-                callback_data="back_to_start"
-            )
-        ]
-    ])
 
-    return keyboard
+def get_settings_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура настроек"""
+    keyboard = [
+        [InlineKeyboardButton(text="🌐 Изменить язык", callback_data="change_language")],
+        [InlineKeyboardButton(text="🔔 Уведомления", callback_data="notifications")],
+        [InlineKeyboardButton(text="🎭 Изменить персонажа", callback_data="change_character")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_start")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_language_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура выбора языка"""
+    keyboard = [
+        [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")],
+        [InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="settings")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 
 
 def get_language_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:

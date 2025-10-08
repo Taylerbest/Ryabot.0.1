@@ -18,12 +18,12 @@ from config.texts import (
 from config.settings import settings
 from core.domain.entities import TutorialStep
 from adapters.database.supabase.client import get_supabase_client
-from interfaces.telegram_bot.keyboards.mainmenu import get_start_menu
-from interfaces.telegram_bot.keyboards.inlinemenus import (
+from interfaces.telegram_bot.keyboards.main_menu import get_start_menu
+from interfaces.telegram_bot.keyboards.inline_menus import (
     get_language_keyboard,
     get_settings_keyboard  # ← Добавьте этот импорт
 )
-from services.tutorialservice import tutorial_service
+from services.tutorial_service import tutorial_service
 from utils.base62_helper import decode_player_id
 
 router = Router()
