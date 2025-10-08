@@ -16,6 +16,7 @@ from config.game_stats import game_stats
 from services.tutorial_service import tutorial_service
 from services.quest_service import quest_service
 from adapters.database.supabase.client import get_supabase_client
+from interfaces.telegram_bot.states import TutorialState
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -60,6 +61,174 @@ def get_island_menu() -> ReplyKeyboardMarkup:
         input_field_placeholder="Выберите раздел острова"
     )
 
+
+# ОБРАБОТЧИК: кнопка "Настройки"
+@router.message(F.text == BTN_SETTINGS)
+async def settings_menu_message(message: Message):
+    """Открытие меню настроек"""
+    try:
+        user_id = message.from_user.id
+
+        client = await get_supabase_client()
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["display_name", "username", "language", "character_preset"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        if not user_data:
+            await message.answer("❌ Пользователь не найден. Используйте /start")
+            return
+
+        display_name = user_data.get("display_name") or user_data.get("username", "Не установлено")
+        language = user_data.get("language", "ru")
+        character = user_data.get("character_preset", 1)
+
+        settings_text = (
+            f"⚙️ **Настройки**\n\n"
+            f"📝 Отображаемое имя: `{display_name}`\n"
+            f"🌍 Язык: `{'Русский' if language == 'ru' else 'English'}`\n"
+            f"👤 Персонаж: `#{character}`\n\n"
+            f"Выберите, что хотите изменить:"
+        )
+
+        await message.answer(settings_text, reply_markup=get_settings_keyboard())
+
+    except Exception as e:
+        logger.error(f"Error showing settings: {e}")
+        await message.answer("❌ Произошла ошибка при загрузке настроек")
+
+
+# ОБРАБОТЧИК: начало смены имени из настроек
+@router.callback_query(F.data == "settings_change_name")
+async def change_name_start(callback: CallbackQuery, state: FSMContext):
+    """Начало процесса смены имени"""
+    try:
+        user_id = callback.from_user.id
+
+        client = await get_supabase_client()
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["display_name", "username"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        current_name = user_data.get("display_name") or user_data.get("username", "Не установлено")
+
+        text = (
+            f"📝 **Изменение отображаемого имени**\n\n"
+            f"Текущее имя: `{current_name}`\n\n"
+            f"Введите новое отображаемое имя (3-20 символов):\n\n"
+            f"💡 Это имя будут видеть другие игроки в рейтингах, на карте и в списке друзей."
+        )
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="settings_cancel")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=keyboard)
+        await state.set_state(TutorialState.WAITING_FOR_DISPLAY_NAME)
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"Error starting name change: {e}")
+        await callback.answer("❌ Ошибка", show_alert=True)
+
+
+# ОБРАБОТЧИК: обработка нового имени
+@router.message(TutorialState.WAITING_FOR_DISPLAY_NAME)
+async def change_name_process(message: Message, state: FSMContext):
+    """Обработка нового имени"""
+    try:
+        user_id = message.from_user.id
+        new_name = message.text.strip()
+
+        # Импортируем use case
+        from core.use_cases.user.update_display_name import UpdateDisplayNameUseCase
+        from adapters.database.supabase.repositories.user_repository import SupabaseUserRepository
+
+        # Создаём use case
+        client = await get_supabase_client()
+        user_repo = SupabaseUserRepository(client)
+        use_case = UpdateDisplayNameUseCase(user_repo)
+
+        # Выполняем обновление
+        success, msg = await use_case.execute(user_id, new_name)
+
+        if success:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⚙️ Настройки", callback_data="back_to_settings")],
+                [InlineKeyboardButton(text="◀️ Главное меню", callback_data="settings_back")]
+            ])
+            await message.answer(f"✅ {msg}", reply_markup=keyboard)
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="settings_change_name")],
+                [InlineKeyboardButton(text="⚙️ Настройки", callback_data="back_to_settings")]
+            ])
+            await message.answer(f"❌ {msg}", reply_markup=keyboard)
+
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Error changing display name: {e}")
+        await message.answer("❌ Произошла ошибка при изменении имени")
+        await state.clear()
+
+
+# ОБРАБОТЧИК: возврат в настройки
+@router.callback_query(F.data == "back_to_settings")
+async def back_to_settings(callback: CallbackQuery):
+    """Возврат в меню настроек"""
+    try:
+        user_id = callback.from_user.id
+
+        client = await get_supabase_client()
+        user_data = await client.execute_query(
+            table="users",
+            operation="select",
+            columns=["display_name", "username", "language", "character_preset"],
+            filters={"user_id": user_id},
+            single=True
+        )
+
+        display_name = user_data.get("display_name") or user_data.get("username", "Не установлено")
+        language = user_data.get("language", "ru")
+        character = user_data.get("character_preset", 1)
+
+        settings_text = (
+            f"⚙️ **Настройки**\n\n"
+            f"📝 Отображаемое имя: `{display_name}`\n"
+            f"🌍 Язык: `{'Русский' if language == 'ru' else 'English'}`\n"
+            f"👤 Персонаж: `#{character}`\n\n"
+            f"Выберите, что хотите изменить:"
+        )
+
+        await callback.message.edit_text(settings_text, reply_markup=get_settings_keyboard())
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"Error returning to settings: {e}")
+        await callback.answer("❌ Ошибка", show_alert=True)
+
+
+# ОБРАБОТЧИК: отмена
+@router.callback_query(F.data == "settings_cancel")
+async def settings_cancel(callback: CallbackQuery, state: FSMContext):
+    """Отмена текущего действия в настройках"""
+    await state.clear()
+    await back_to_settings(callback)
+
+
+@router.callback_query(F.data == "settings_back")
+async def settings_back_to_menu(callback: CallbackQuery):
+    """Закрытие настроек"""
+    await callback.message.delete()
+    await callback.answer("Настройки закрыты")
 
 def get_stats_keyboard(selected: str = "rbtc") -> InlineKeyboardMarkup:
     """Инлайн кнопки статистики - переключение эмодзи пальца"""

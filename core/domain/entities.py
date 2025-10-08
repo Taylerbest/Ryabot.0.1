@@ -129,6 +129,8 @@ class User:
     """Пользователь игры"""
     user_id: int
     username: Optional[str] = None
+    display_name: Optional[str] = None
+    player_id: Optional[int] = None
     language: Language = Language.RU
     resources: Resources = field(default_factory=Resources)
     level: int = 1

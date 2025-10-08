@@ -15,6 +15,7 @@ from core.use_cases.user.create_user import CreateUserUseCase, GetUserProfileUse
 from adapters.database.supabase.client import get_supabase_client
 from adapters.database.supabase.repositories.user_repository import SupabaseUserRepository
 from core.domain.entities import TutorialStep, CharacterPreset
+from interfaces.telegram_bot.states import TutorialState
 
 # Config
 from config.texts import *
@@ -147,6 +148,7 @@ async def start_character_creation(callback: CallbackQuery, state: FSMContext):
         logger.error(f"Ошибка создания персонажа: {e}")
         await callback.answer("Ошибка создания персонажа", show_alert=True)
 
+
 @router.callback_query(F.data.startswith("char_"))
 async def select_character(callback: CallbackQuery, state: FSMContext):
     """Выбор персонажа"""
@@ -160,27 +162,269 @@ async def select_character(callback: CallbackQuery, state: FSMContext):
             table="users",
             operation="update",
             data={
-                "character_preset": char_id,
-                "tutorial_step": TutorialStep.SHIPWRECK.value
+                "character_preset": char_id
             },
             filters={"user_id": user_id}
         )
 
-        # Показываем выбранного персонажа
-        text = CHARACTER_SELECTED.format(
-            name=CHARACTER_NAMES[char_id],
-            description=CHARACTER_DESCRIPTIONS[char_id]
+        # ИЗМЕНЕНО: Запрашиваем имя ВМЕСТО показа выбранного персонажа
+        text = (
+            f"✅ **Персонаж выбран!**\n\n"
+            f"👤 {CHARACTER_NAMES[char_id]}\n"
+            f"_{CHARACTER_DESCRIPTIONS[char_id]}_\n\n"
+            f"━━━━━━━━━━━━━━━━━\n\n"
+            f"📝 **Как вас будут называть на острове?**\n\n"
+            f"Введите своё игровое имя (3-20 символов):\n\n"
+            f"💡 Это имя будут видеть другие игроки в рейтингах, на карте и в списке друзей."
         )
 
-        await callback.message.edit_text(
-            text,
-            reply_markup=get_tutorial_keyboard("character_selected")
-        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="skip_display_name")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=keyboard)
+
+        # Импортируем состояние
+        from interfaces.telegram_bot.states import TutorialState
+        await state.set_state(TutorialState.WAITING_FOR_DISPLAY_NAME)
         await callback.answer(f"Персонаж {CHARACTER_NAMES[char_id]} выбран!", show_alert=True)
 
     except Exception as e:
         logger.error(f"Ошибка выбора персонажа: {e}")
         await callback.answer("Ошибка выбора персонажа", show_alert=True)
+
+
+# === ОБРАБОТКА ВВОДА ИМЕНИ ПОСЛЕ ВЫБОРА ПЕРСОНАЖА ===
+
+@router.message(TutorialState.WAITING_FOR_DISPLAY_NAME)
+async def process_display_name_in_tutorial(message: Message, state: FSMContext):
+    """Обработка ввода имени в туториале"""
+    try:
+        user_id = message.from_user.id
+        new_name = message.text.strip()
+
+        logger.info(f"Пользователь {user_id} вводит имя: {new_name}")
+
+        # Импортируем use case
+        from core.use_cases.user.update_display_name import UpdateDisplayNameUseCase
+        from adapters.database.supabase.repositories.user_repository import SupabaseUserRepository
+
+        # Создаём use case
+        client = await get_supabase_client()
+        user_repo = SupabaseUserRepository(client)
+        use_case = UpdateDisplayNameUseCase(user_repo)
+
+        # Выполняем обновление
+        success, msg = await use_case.execute(user_id, new_name)
+
+        if success:
+            # Имя установлено успешно - продолжаем туториал
+            await state.clear()
+
+            # Обновляем шаг туториала
+            await client.execute_query(
+                table="users",
+                operation="update",
+                data={"tutorial_step": TutorialStep.SHIPWRECK.value},
+                filters={"user_id": user_id}
+            )
+
+            welcome_text = (
+                f"✅ **Отлично, {new_name}!**\n\n"
+                f"Теперь начнём ваше приключение на острове...\n\n"
+                f"🌊 Вы просыпаетесь на берегу после кораблекрушения..."
+            )
+
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=BTN_TUTORIAL_START, callback_data="tutorial_shipwreck")]
+            ])
+
+            await message.answer(welcome_text, reply_markup=keyboard)
+        else:
+            # Ошибка валидации или имя занято
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Попробовать другое имя", callback_data="retry_display_name")],
+                [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="skip_display_name")]
+            ])
+            await message.answer(f"❌ {msg}\n\nПопробуйте другое имя:", reply_markup=keyboard)
+
+    except Exception as e:
+        logger.error(f"Ошибка обработки имени в туториале: {e}", exc_info=True)
+        await message.answer("❌ Произошла ошибка. Попробуйте ещё раз или пропустите этот шаг.")
+        await state.clear()
+
+
+@router.callback_query(F.data == "retry_display_name")
+async def retry_display_name(callback: CallbackQuery, state: FSMContext):
+    """Повтор ввода имени"""
+    text = (
+        f"📝 **Введите другое имя**\n\n"
+        f"Требования:\n"
+        f"• От 3 до 20 символов\n"
+        f"• Имя должно быть уникальным\n\n"
+        f"Введите новое имя:"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="skip_display_name")]
+    ])
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+
+    from interfaces.telegram_bot.states import TutorialState
+    await state.set_state(TutorialState.WAITING_FOR_DISPLAY_NAME)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "skip_display_name")
+async def skip_display_name(callback: CallbackQuery, state: FSMContext):
+    """Пропуск ввода имени"""
+    try:
+        user_id = callback.from_user.id
+        await state.clear()
+
+        # Обновляем шаг туториала
+        client = await get_supabase_client()
+        await client.execute_query(
+            table="users",
+            operation="update",
+            data={"tutorial_step": TutorialStep.SHIPWRECK.value},
+            filters={"user_id": user_id}
+        )
+
+        text = (
+            f"⏭️ **Имя не установлено**\n\n"
+            f"Вы сможете изменить его позже в настройках.\n\n"
+            f"🌊 Начинаем ваше приключение...\n\n"
+            f"Вы просыпаетесь на берегу после кораблекрушения..."
+        )
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=BTN_TUTORIAL_START, callback_data="tutorial_shipwreck")]
+        ])
+
+        await callback.message.edit_text(text, reply_markup=keyboard)
+        await callback.answer("Имя можно будет изменить в настройках")
+
+    except Exception as e:
+        logger.error(f"Ошибка пропуска имени: {e}")
+        await callback.answer("Ошибка", show_alert=True)
+
+
+@router.message(TutorialStates.waiting_for_display_name)
+async def process_display_name_in_tutorial(message: Message, state: FSMContext):
+    """Обработка ввода игрового имени"""
+    user_id = message.from_user.id
+    display_name = message.text.strip()
+
+    logger.info(f"Пользователь {user_id} ввел имя: {display_name}")
+
+    try:
+        # Валидация длины
+        if len(display_name) < 3 or len(display_name) > 12:
+            await message.answer(
+                "❌ Имя должно быть от 3 до 12 символов. Попробуй еще раз:",
+                reply_markup=None
+            )
+            return
+
+        # Валидация символов
+        if not re.match(r'^[a-zA-Zа-яА-Я0-9_-]+$', display_name):
+            await message.answer(
+                "❌ Используй только буквы, цифры, _ и -\nПопробуй еще раз:",
+                reply_markup=None
+            )
+            return
+
+        # Проверка уникальности
+        client = await get_supabase_client()
+        user_repo = SupabaseUserRepository(client)
+
+        name_exists = await user_repo.check_display_name_exists(display_name)
+
+        if name_exists:
+            await message.answer(
+                "❌ Это имя уже занято. Выбери другое:",
+                reply_markup=None
+            )
+            return
+
+        # Сохранение имени
+        success = await user_repo.update_display_name(user_id, display_name)
+
+        if not success:
+            await message.answer(
+                "❌ Ошибка сохранения имени. Попробуй еще раз:",
+                reply_markup=None
+            )
+            return
+
+        # Обновляем tutorial_step
+        await client.execute_query(
+            table="users",
+            operation="update",
+            data={"tutorial_step": TutorialStep.SHIPWRECK.value},
+            filters={"user_id": user_id}
+        )
+
+        await message.answer(
+            f"✅ Отлично, {display_name}! Твое имя сохранено.\n\n"
+            "Теперь начнем историю...",
+            reply_markup=get_tutorial_keyboard("shipwreck")
+        )
+
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Ошибка обработки имени в туториале: {e}", exc_info=True)
+        await message.answer(
+            "❌ Произошла ошибка. Попробуй еще раз или обратись в поддержку.",
+            reply_markup=None
+        )
+
+
+# НОВОЕ: Повтор ввода имени
+@router.callback_query(F.data == "retry_display_name")
+async def retry_display_name(callback: CallbackQuery, state: FSMContext):
+    """Повтор ввода имени"""
+    text = (
+        f"📝 **Введите другое имя**\n\n"
+        f"Требования:\n"
+        f"• От 3 до 20 символов\n"
+        f"• Имя должно быть уникальным\n\n"
+        f"Введите новое имя:"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⏭️ Пропустить", callback_data="skip_display_name")]
+    ])
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+
+    from interfaces.telegram_bot.states import TutorialState
+    await state.set_state(TutorialState.WAITING_FOR_DISPLAY_NAME)
+    await callback.answer()
+
+
+# НОВОЕ: Пропуск ввода имени
+@router.callback_query(F.data == "skip_display_name")
+async def skip_display_name(callback: CallbackQuery, state: FSMContext):
+    """Пропуск ввода имени"""
+    await state.clear()
+
+    text = (
+        f"⏭️ **Имя не установлено**\n\n"
+        f"Вы сможете изменить его позже в настройках.\n\n"
+        f"🌊 Начинаем ваше приключение...\n\n"
+        f"Вы просыпаетесь на берегу после кораблекрушения..."
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=BTN_TUTORIAL_START, callback_data="tutorial_shipwreck")]
+    ])
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer("Имя можно будет изменить в настройках")
 
 # === ТУТОРИАЛ ===
 

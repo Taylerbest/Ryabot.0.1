@@ -57,6 +57,8 @@ class SupabaseUserRepository(UserRepository):
             user = User(
                 user_id=user_data['user_id'],
                 username=user_data.get('username'),
+                display_name=user_data.get("display_name"),
+                player_id=user_data.get("player_id"),
                 resources=resources,
                 level=user_data.get('level', 1),
                 experience=user_data.get('experience', 0),
@@ -84,6 +86,8 @@ class SupabaseUserRepository(UserRepository):
             user_data = {
                 "user_id": user.user_id,
                 "username": user.username,
+                "display_name": user.display_name,
+                "player_id": user.player_id,
                 "ryabucks": user.resources.ryabucks,
                 "rbtc": float(user.resources.rbtc.amount),
                 "energy": user.resources.energy.current,
@@ -336,3 +340,37 @@ class SupabaseUserRepository(UserRepository):
         except Exception as e:
             logger.error(f"Ошибка получения активных пользователей: {e}")
             return []
+
+
+async def update_display_name(self, user_id: int, display_name: str) -> bool:
+    """Обновить игровое имя пользователя"""
+    try:
+        result = await self.client.execute_query(
+            table="users",
+            operation="update",
+            data={
+                "display_name": display_name,
+                "last_active": datetime.now().isoformat()
+            },
+            filters={"user_id": user_id}
+        )
+        logger.info(f"Обновлено имя для пользователя {user_id}: {display_name}")
+        return bool(result)
+    except Exception as e:
+        logger.error(f"Ошибка обновления имени для {user_id}: {e}")
+        return False
+
+async def check_display_name_exists(self, display_name: str) -> bool:
+    """Проверить существование игрового имени"""
+    try:
+        result = await self.client.execute_query(
+            table="users",
+            operation="select",
+            columns=["user_id"],
+            filters={"display_name": display_name},
+            single=True
+        )
+        return result is not None
+    except Exception as e:
+        logger.error(f"Ошибка проверки имени {display_name}: {e}")
+        return False

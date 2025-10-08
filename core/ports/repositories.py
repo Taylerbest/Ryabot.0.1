@@ -45,6 +45,16 @@ class UserRepository(ABC):
         """Получить статистику пользователя"""
         pass
 
+    @abstractmethod
+    async def update_display_name(self, user_id: int, display_name: str) -> bool:
+        """Обновить игровое имя пользователя"""
+        pass
+
+    @abstractmethod
+    async def check_display_name_exists(self, display_name: str) -> bool:
+        """Проверить существование игрового имени"""
+        pass
+
 
 class SpecialistRepository(ABC):
     """Репозиторий специалистов"""

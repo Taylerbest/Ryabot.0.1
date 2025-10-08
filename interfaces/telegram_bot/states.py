@@ -23,6 +23,7 @@ class TutorialState(StatesGroup):
     HIRE_WORKER = State()         # Найм первого жителя
     TRAINING = State()            # Обучение жителя
     COMPLETE = State()            # Завершение туториала
+    WAITING_FOR_DISPLAY_NAME = State()
 
 class AcademyState(StatesGroup):
     """Состояния академии"""
