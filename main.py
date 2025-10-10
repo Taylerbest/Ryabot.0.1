@@ -7,6 +7,13 @@ import asyncio
 import logging
 import sys
 import io
+import os
+
+# Исправление кодировки для Windows
+if sys.platform == 'win32':
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    print("UTF-8 активирована")
+
 from pathlib import Path
 
 # Добавляем родительскую директорию в Python path
@@ -23,27 +30,11 @@ from interfaces.telegram_bot.middlewares import setup_middlewares
 from interfaces.telegram_bot.middlewares.energy_middleware import EnergyMiddleware
 from interfaces.telegram_bot.middlewares.user_activity_middleware import UserActivityMiddleware
 from adapters.database.supabase.client import get_supabase_client, close_supabase_client
-import sys
-import os
 
-# Исправление кодировки для Windows
-if sys.platform == "win32":
-    os.environ["PYTHONIOENCODING"] = "utf-8"
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-    if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8')
-
-# Настройка логирования с поддержкой UTF-8 для Windows
-console_handler = logging.StreamHandler(io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8'))
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/bot.log', encoding='utf-8'),
-        console_handler
-    ]
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 logger = logging.getLogger(__name__)

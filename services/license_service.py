@@ -206,43 +206,23 @@ class LicenseService:
         """Подключаем зависимости"""
         if not self.bank_service:
             from services.bank_service import BankService
-            self.bank_service = BankService(self.user_repository)
+            self.bank_service = BankService()
         if not self.event_tracker:
             self.event_tracker = await get_event_tracker()
         if not self.client:
             self.client = await get_supabase_client()
 
     async def calculate_price_multipliers(self) -> Dict[str, float]:
-        """Рассчитать мультипликаторы цен для экономики"""
-        await self._ensure_dependencies()
-
+        """Расчёт мультипликаторов цен"""
         try:
-            # Получаем текущее состояние банка
-            bank_info = await self.bank_service.get_bank_info()
-            current_bank_ryabucks = Decimal(str(bank_info["ryabucks_pool"]))
-
-            # Мультипликатор для рябаксов на основе банковского пула
-            # Логика: чем больше денег в банке, тем дешевле товары (больше денег = инфляция = падение цен товаров)
-            ryabucks_multiplier = max(0.2, min(5.0, float(current_bank_ryabucks / self.INITIAL_BANK_RYABUCKS)))
-
-            # Получаем сумму сожженных RBTC (заглушка для MVP)
-            burned_rbtc = await self._get_total_burned_rbtc()
-
-            # Мультипликатор для RBTC (плавное удешевление)
-            # Формула: 1 - (Сожжено/Общий_пул)^k
-            burn_ratio = min(1.0, float(burned_rbtc / self.TOTAL_RBTC_POOL))
-            rbtc_multiplier = max(0.1, 1.0 - (burn_ratio ** self.SMOOTHING_COEFFICIENT))
-
+            # Упрощённая версия - фиксированные множители
             return {
-                "ryabucks": round(ryabucks_multiplier, 2),
-                "rbtc": round(rbtc_multiplier, 2),
-                "bank_ryabucks": float(current_bank_ryabucks),
-                "burned_rbtc": float(burned_rbtc)
+                "ryabucks": 1.0,
+                "rbtc": 1.0
             }
-
         except Exception as e:
-            logger.error(f"Ошибка расчёта мультипликаторов цен: {e}")
-            return {"ryabucks": 1.0, "rbtc": 1.0, "bank_ryabucks": float(self.INITIAL_BANK_RYABUCKS), "burned_rbtc": 0.0}
+            logger.error(f"Ошибка расчёта мультипликаторов: {e}")
+            return {"ryabucks": 1.0, "rbtc": 1.0}
 
     async def _get_total_burned_rbtc(self) -> Decimal:
         """Получить общую сумму сожженных RBTC"""
@@ -291,20 +271,22 @@ class LicenseService:
 
         return final_ryabucks, final_rbtc
 
-    async def get_user_licenses(self) -> Dict[str, int]:
-        """Получить текущие лицензии пользователя"""
+    async def get_user_licenses(self, user_id: int) -> Dict[str, int]:
+        """Получить текущие уровни лицензий пользователя"""
         try:
             await self._ensure_dependencies()
 
-            licenses_data = await self.client.execute_query(
+            result = await self.client.execute_query(
                 table="user_licenses",
                 operation="select",
+                columns=["license_type", "level"],
                 filters={"user_id": user_id}
             )
 
             licenses = {}
-            for license_data in licenses_data:
-                licenses[license_data["license_type"]] = license_data["level"]
+            if result:
+                for row in result:
+                    licenses[row["license_type"]] = row.get("level", 0)
 
             return licenses
 

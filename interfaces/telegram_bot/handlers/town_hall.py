@@ -79,7 +79,7 @@ async def show_town_hall(query: CallbackQuery):
         # Четвертая строка - Бонусы и Назад
         keyboard.row(
             InlineKeyboardButton(text="📆 Бонусы", callback_data="daily_bonuses"),
-            InlineKeyboardButton(text="↪️ Назад", callback_data="main_menu")
+            InlineKeyboardButton(text="↪️ Назад", callback_data="back_to_town")
         )
 
         await query.message.edit_text(text, reply_markup=keyboard.as_markup())
@@ -88,6 +88,8 @@ async def show_town_hall(query: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка показа ратуши для {query.from_user.id}: {e}")
         await query.answer("Техническая ошибка", show_alert=True)
+
+# ИСПРАВЛЕННАЯ версия метода show_licenses в town_hall.py
 
 @router.callback_query(F.data == "licenses")
 async def show_licenses(query: CallbackQuery):
@@ -107,45 +109,75 @@ async def show_licenses(query: CallbackQuery):
 
 «Суровый клерк просматривает стопку бумаг, держа наготове золотые печати. Каждое разрешение открывает новые возможности — за определённую цену».
 
-💰 Мультипликатор рябаксов: x{multipliers['ryabucks']}
-⚛️ Мультипликатор RBTC: x{multipliers['rbtc']}"""
+💰 Мультипликатор рябаксов: x{multipliers['ryabucks']:.2f}
+⚛️ Мультипликатор RBTC: x{multipliers['rbtc']:.2f}"""
 
         # Создаём клавиатуру
         keyboard = InlineKeyboardBuilder()
 
-        # Добавляем лицензии по 3 кнопки в ряд (гайд | рябаксы | RBTC)
-        for license_data in licenses_data:
-            # Первая кнопка - ссылка на гайд
-            keyboard.add(InlineKeyboardButton(
-                text=f"{license_data['icon']} Ур.{license_data['current_level']}",
-                url=license_data['telegra_link']
-            ))
+        # ВАЖНО: Проверяем что licenses_data не пустой
+        if not licenses_data:
+            text += "\n\n⚠️ Лицензии не загружены. Попробуйте позже."
+            keyboard.add(InlineKeyboardButton(text="↪️ Назад", callback_data="town_hall"))
+        else:
+            # Добавляем лицензии
+            for license_data in licenses_data:
+                # Строка с 3 кнопками для каждой лицензии
 
-            # Вторая кнопка - цена в рябаксах
-            ryabucks_text = f"💵 {license_data['ryabucks_price']}"
-            keyboard.add(InlineKeyboardButton(
-                text=ryabucks_text,
-                callback_data=f"buy_license:{license_data['type']}:ryabucks" if not license_data['is_max'] else "license_maxed"
-            ))
+                # 1. Иконка и уровень (ссылка на гайд)
+                keyboard.add(InlineKeyboardButton(
+                    text=f"{license_data['icon']} Ур.{license_data['current_level']}",
+                    url=license_data.get('telegra_link', 'https://telegra.ph')
+                ))
 
-            # Третья кнопка - цена в RBTC
-            rbtc_text = f"💠 {license_data['rbtc_price']}"
-            keyboard.add(InlineKeyboardButton(
-                text=rbtc_text,
-                callback_data=f"buy_license:{license_data['type']}:rbtc" if not license_data['is_max'] else "license_maxed"
-            ))
+                # 2. Цена в рябаксах
+                if license_data['is_max']:
+                    ryabucks_text = "MAX"
+                    ryabucks_callback = "license_maxed"
+                else:
+                    price = license_data['ryabucks_price']
+                    if isinstance(price, str):
+                        price = price.replace(',', '')  # ← Убираем запятые!
+                        price = int(float(price))
+                    ryabucks_text = f"💵 {price:,}"
+                    ryabucks_callback = f"buy_license:{license_data['type']}:ryabucks"
 
-            # Переход на новую строку после каждой лицензии
+                keyboard.add(InlineKeyboardButton(
+                    text=ryabucks_text,
+                    callback_data=ryabucks_callback
+                ))
+
+                # 3. Цена в RBTC
+                if license_data['is_max']:
+                    rbtc_text = "MAX"
+                    rbtc_callback = "license_maxed"
+                elif license_data.get('rbtc_price'):
+                    rbtc_price = license_data['rbtc_price']
+                    if isinstance(rbtc_price, str):
+                        rbtc_price = rbtc_price.replace(',', '')  # ← Убираем запятые!
+                        rbtc_price = float(rbtc_price)
+                    rbtc_text = f"💠 {rbtc_price:.2f}"
+                    rbtc_callback = f"buy_license:{license_data['type']}:rbtc"
+                else:
+                    rbtc_text = "—"
+                    rbtc_callback = "no_rbtc_price"
+
+                keyboard.add(InlineKeyboardButton(
+                    text=rbtc_text,
+                    callback_data=rbtc_callback
+                ))
+
+            # Применяем adjust(3) чтобы в каждой строке было по 3 кнопки
             keyboard.adjust(3)
 
-        # Кнопка назад
-        keyboard.row(InlineKeyboardButton(text="↪️ Назад", callback_data="town_hall"))
+            # Кнопка назад внизу
+            keyboard.row(InlineKeyboardButton(text="↪️ Назад", callback_data="town_hall"))
 
         await query.message.edit_text(text, reply_markup=keyboard.as_markup())
         await query.answer()
 
     except Exception as e:
-        logger.error(f"Ошибка показа лицензий для {query.from_user.id}: {e}")
+        logger.error(f"Ошибка показа лицензий для {query.from_user.id}: {e}", exc_info=True)
         await query.answer("Техническая ошибка", show_alert=True)
 
 @router.callback_query(F.data.startswith("buy_license:"))
@@ -204,5 +236,28 @@ async def show_guilds(query: CallbackQuery):
 async def show_daily_bonuses(query: CallbackQuery):
     """Заглушка для ежедневных бонусов"""
     await query.answer("🚧 Ежедневные бонусы в разработке", show_alert=True)
+
+@router.callback_query(F.data == "main_menu")
+async def back_to_main_menu(query: CallbackQuery):
+    """Вернуться в главное меню"""
+    try:
+        # Импортируем функцию главного меню из start.py
+        from .start import show_main_menu
+        await show_main_menu(query.message, query.from_user.id)
+        await query.answer()
+
+    except Exception as e:
+        logger.error(f"Ошибка возврата в главное меню: {e}")
+        await query.answer("Ошибка возврата в меню", show_alert=True)
+
+@router.callback_query(F.data == "no_rbtc_price")
+async def no_rbtc_price_handler(query: CallbackQuery):
+    """Обработчик для лицензий без RBTC цены"""
+    await query.answer("Эту лицензию можно купить только за рябаксы", show_alert=True)
+
+@router.callback_query(F.data == "license_maxed")
+async def license_maxed_notification(query: CallbackQuery):
+    """Уведомление о максимальной лицензии"""
+    await query.answer("Лицензия уже максимального уровня! 🎉", show_alert=True)
 
 logger.info("✅ Town Hall handler загружен")

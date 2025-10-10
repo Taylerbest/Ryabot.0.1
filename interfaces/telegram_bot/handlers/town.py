@@ -90,14 +90,17 @@ async def town_ryabank(callback: CallbackQuery):
 
 # === ОБЩИЙ ОБРАБОТЧИК ЗДАНИЙ ГОРОДА ===
 
-@router.callback_query(F.data.startswith("town_"))
+# ДОЛЖНО БЫТЬ:
+@router.callback_query(F.data.in_([
+    "town_market", "town_shop", "town_pawnshop",
+    "town_tavern", "town_fortune", "town_realestate",
+    "town_vetcenter", "town_construction", "town_hospital",
+    "town_cemetery"
+]))
 async def handle_town_building(callback: CallbackQuery):
     """Обработка остальных зданий города"""
     try:
         building = callback.data.split("_")[1]
-
-        if building == 'quantumhub':
-            return  # Обрабатывается в quantum_hub.py
 
         building_names = {
             "hall": "🏛 РАТУША",
