@@ -43,47 +43,61 @@ def get_bank_keyboard() -> InlineKeyboardMarkup:
 
 @router.callback_query(F.data == "town_ryabank")
 async def show_bank_menu(callback: CallbackQuery):
-    """Показать главное меню Рябанка"""
+    """Показать меню рябанка с экономической информацией"""
     try:
-        logger.info("🏦 ВХОД В БАНК - show_bank_menu вызван")
+        logger.info("📊 Показываем меню банка - show_bank_menu")
 
-        # Получить состояние пулов
+        # Получаем пулы банка
         pools = await bank_service.get_bank_pools()
+        logger.info(f"RBTC={pools['rbtc_pool']}, Рябаксы={pools['ryabucks_pool']}, Курс={pools['current_rate']:.2f}")
 
-        logger.info(f"📊 Данные из БД: RBTC={pools['rbtc_pool']}, Рябаксы={pools['ryabucks_pool']}, Курс={pools['current_rate']:.2f}")
+        # Рассчитываем мультипликатор экономики
+        initial_bank = 1_050_000_000  # Начальная сумма
+        current_bank = float(pools['total_bank_ryabucks'])
+        economy_multiplier = max(0.2, min(5.0, current_bank / initial_bank))
 
-        bank_text = f"""〰️〰️ 🏦 ₽ЯБАНК ℹ️ 🔋14  〰️〰️
+        # Определяем статус экономики
+        if economy_multiplier >= 3.0:
+            economy_status = "🔥 Гиперинфляция"
+        elif economy_multiplier >= 2.0:
+            economy_status = "📈 Высокая инфляция"
+        elif economy_multiplier >= 1.5:
+            economy_status = "📊 Умеренная инфляция"
+        elif economy_multiplier >= 0.8:
+            economy_status = "⚖️ Стабильность"
+        elif economy_multiplier >= 0.5:
+            economy_status = "📉 Дефляция"
+        else:
+            economy_status = "❄️ Глубокая дефляция"
 
-Крепость богатства, где золотые яйца 
-блестят в свете хрустальных фонарей.
+        # Форматируем текст меню
+        bank_text = f"""〰️〰️〰️ 🏦 РЯБАНК 〰️〰️〰️
 
-Воздух здесь наполнен звоном 
-монет и шелестом страниц бухгалтерских книг. 
-Полированные мраморные полы отражают сияние 
-золотых сводов, а серьёзные на вид 
-клерки в жилетах подсчитывают состояния 
-за позолоченными железными стойками.
+«14 банков объединились в один — великий центр финансовой мощи острова. Здесь курсы валют устанавливаются спросом и предложением, а каждая сделка меняет экономику».
 
-💠 Банковский Пул  
-├ Цена 1 [💠]: {pools['current_rate']:.2f} [💵]
-├ [💠]: {pools['rbtc_pool']:.0f} RBTC  
-└ [💵]: {pools['ryabucks_pool']:.0f} Рябаксов
+💱 **Текущий курс:**
+1 RBTC = {pools['current_rate']:.2f} рябаксов
 
-⚜️ Инвестировано: {pools['total_invested_golden_eggs']} золотых яиц"""
+📊 **Пулы банка:**
+• RBTC: {float(pools['rbtc_pool']):.0f}
+• Рябаксы: {int(pools['ryabucks_pool']):,}
 
-        logger.info(f"📝 Отправляю текст в Telegram (длина: {len(bank_text)} символов)")
+💰 **Экономика острова:**
+• Общий банк: {int(current_bank):,} рябаксов
+• Мультипликатор: x{economy_multiplier:.2f}
+• Статус: {economy_status}
 
-        await callback.message.edit_text(
-            bank_text,
-            reply_markup=get_bank_keyboard()
-        )
+🥚 Золотых яиц вложено: {pools['total_invested_golden_eggs']}"""
 
-        logger.info("✅ Меню банка отправлено успешно")
+        logger.info(f"Текст меню банка (Telegram безопасный): {len(bank_text)} символов")
+
+        await callback.message.edit_text(bank_text, reply_markup=get_bank_keyboard())
+        logger.info("✅ Меню банка отправлено")
         await callback.answer()
 
     except Exception as e:
-        logger.error(f"❌ Ошибка показа меню банка: {e}")
-        await callback.answer("Произошла ошибка", show_alert=True)
+        logger.error(f"Ошибка показа меню банка: {e}", exc_info=True)
+        await callback.answer("Техническая ошибка", show_alert=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -546,6 +560,7 @@ async def process_successful_payment(message: Message):
     except Exception as e:
         logger.error(f"❌ Ошибка платежа: {e}")
         await message.answer("Ошибка зачисления")
+
 
 
 # TODO: Реализовать обработчики для:
